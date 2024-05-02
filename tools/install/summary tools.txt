@@ -1,0 +1,81 @@
+environments
+dire_p31012 
+python 3.10.12
+conda: 23.11.0
+
+dire 
+python: 3.11.5
+conda: private=23.9.0, gu=23.11.0
+
+
+tools
+
+confindr
+environment: p31012
+version: 0.8.1
+computer: private
+
+trimgalore
+environment: dire
+version: 0.6.10
+computer: private
+conda: 23.9.0
+
+cutadapt
+environment: dire
+version: 3.5
+computer: private
+conda: 23.9.0
+
+fastqc
+environment: dire
+version: 0.11.9
+computer: private
+conda: 23.9.0
+
+
+SPAdes-original
+environment: dire
+version: 3.15.4
+computer: gu
+conda: 23.11.0
+
+SPAdes-optimized
+environment: dire
+version: 3.15.4
+conda: 23.9.0 and 23.11.0 
+computer: gu and private
+gu: batch A-I,L samples "17", "20", "23" from J
+private: batch K, M, N, samples "27","32","37","38","41","46" from J
+
+unicycler
+environment: dire
+version: 0.5.0
+computer: private
+conda: 23.9.0
+
+seqkit
+environment: p31012
+version: 2.6.1
+computer: gu
+
+quast
+environment: p31012
+version: 5.2.0
+computer: gu
+
+amrfinder
+environment: p31012
+version: 3.11.26
+computer: gu
+
+checkm:
+environment: dire
+version: 1.2.2
+computer: private
+conda: 23.9.0
+
+multiqc:
+environment: p31012
+version: 1.19
+computer: gu

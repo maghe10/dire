@@ -1,0 +1,50 @@
++ echo environment
+environment
++ python --version
+Python 3.10.12
++ conda --version
+conda 23.11.0
++ echo 
+
++ echo raw reads quality programs
+raw reads quality programs
++ confindr --version
+ConFindr 0.8.1
++ /root/sequencing/trimgalore/TrimGalore-0.6.10/trim_galore --version
+
+                        Quality-/Adapter-/RRBS-/Speciality-Trimming
+                                [powered by Cutadapt]
+                                  version 0.6.10
+
+                               Last update: 02 02 2023
+
++ cutadapt --version
+3.5
++ fastqc --version
+FastQC v0.12.1
++ echo 
+
++ echo assembly
+assembly
++ python /root/sequencing/spades/SPAdes-3.15.4/bin/spades.py --version
+SPAdes genome assembler v3.15.4
++ spades.py --version
+SPAdes genome assembler v3.15.4
++ unicycler --version
+/root/sequencing/tools/install/versions.sh: 19: unicycler: not found
++ seqkit version
+seqkit v2.6.1
++ echo 
+
++ echo post assembly tools
+post assembly tools
++ quast --version
+WARNING: Python locale settings can't be changed
+QUAST v5.2.0
++ multiqc --version
+multiqc, version 1.19
++ checkm+ head
+ -n 3
+/root/sequencing/tools/install/versions.sh: 26: checkm: not found
++ amrfinder --version
+3.11.26

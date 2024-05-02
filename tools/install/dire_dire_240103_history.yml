@@ -1,0 +1,8 @@
+name: dire
+channels:
+  - defaults
+dependencies:
+  - seqkit
+  - python=3.11.5
+  - ncbi-amrfinderplus
+prefix: /root/miniconda3/envs/dire
