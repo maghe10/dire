@@ -1,4 +1,0 @@
-conda update -n base -c conda-forge conda
-
-sh sequencing/tools/install/exportcondahistory.sh > sequencing/tools/install/dire_dire_240103_history.yml
-

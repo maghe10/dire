@@ -15,7 +15,7 @@ class cd:
         os.chdir(self.savedPath)
 
 # Now you can enter the directory like this:
-with cd("/root/sequencing/dire/model/dire"):
+with cd("/root/dire/program/model/dire"):
    # we are in ~/Library
    subprocess.run("ls")
 

@@ -55,6 +55,7 @@ getIncludedSubset <-function(measurementTable)
 getMillimetertable <- function(includedMeasurementTable)
 {
   millimeterTable <- includedMeasurementTable[,allAntibioticsWithZonesInputColumns]
+  rownames(millimeterTable) <- includedMeasurementTable$Studienummer
   millimeterTable
 }
 
@@ -70,10 +71,10 @@ getDemographicsTable <- function(includedMeasurementTable)
 }
 
 
-writeMillimeterTable <- function(measurementTable)
+writeMillimeterTable <- function(includedMeasurementTable)
 {
-  millimeterTable <- getMillimetertable(measurementTable)
-  
+  millimeterTable <- getMillimetertable(includedMeasurementTable)
+
   millimeterTable <- cbind(rownames(millimeterTable),millimeterTable)
   colnames(millimeterTable)[1]<-"sample"
   fileName <- "millimeterTable.csv"
@@ -91,8 +92,10 @@ writeSirAntibiotics <- function(includedMeasurementTable,headingToAntibioticTabl
   for(mode in modes){
       limit <- modelLimitTable[headingToAntibioticTable$Antibiotic==modelLimitTable$Antibiotic,mode]
       sir <-data.frame(zones)
-      sir[zones<limit] <- "R"
-      sir[zones>=limit] <- "S"
+      for(abindex in  1:ncol(zones)){
+        sir[zones[,abindex]<limit[abindex],abindex] <- "R"
+        sir[zones[,abindex]>=limit[abindex],abindex] <- "S"
+      }
       fileName <- paste("sirAntibioticsModel","_",sub(" ", "-", mode),".csv",sep="")
 
       sir <- cbind(rownames(sir),sir)
@@ -120,6 +123,12 @@ changeToAntibioticTypeOrder <- function(table,column,orderTo)
   table[reverse_order,]
 }
 
+readMeasurementsTable <- function()
+{
+  phenotypeExcel =  paste(processedRootExcel, "ModelInput.xlsx", sep="/")
+  sheetToDataFrame(read_xlsx(phenotypeExcel,sheet = SHEET_MEASUREMENTS_RAW))
+}
+
 writeSeparateInputTables <- function()
 {
   phenotypeExcel =  paste(processedRootExcel, "ModelInput.xlsx", sep="/")
@@ -133,7 +142,8 @@ writeSeparateInputTables <- function()
   modelLimitTable <- changeToAntibioticTypeOrder(modelLimitTable,modelLimitTable$Antibiotic,allAntibioticsInModelModelNames)
   
   includedMeasurementTable <- getIncludedSubset(measurementTable)
-  
+
+    
   writeSirAntibiotics(includedMeasurementTable,headingToAntibioticTable,modelLimitTable)
   writeMillimeterTable(includedMeasurementTable)
   writeDemographics(includedMeasurementTable)
@@ -171,6 +181,41 @@ writeCommonInputTables <- function()
     write.csv2(x=csvTable,file=file,row.names = FALSE)
   }
 }
+
+countPredictableAntibiotics <- function()
+{
+  phenotypeExcel =  paste(processedRootExcel, "ModelInput.xlsx", sep="/")
+  modelLimitTable <- sheetToDataFrame(read_xlsx(phenotypeExcel,sheet = SHEET_MODEL_LIMIT))
+  
+  modes <- colnames(modelLimitTable[2:ncol(modelLimitTable)])
+  mode <- "Mode A"
+  for(mode in modes){
+    modelFile <- paste("sirAntibioticsModel","_",sub(" ", "-", mode),".csv",sep="")
+    sirAntibioticsModel <- read.csv2(row.names=1,paste(modelDirectory,"input",modelFile,sep="/"))
+    demographicsModel <- read.csv2(row.names=1,paste(modelDirectory,"input","demographicsModel.csv",sep="/"))
+    antibioticsNames <- colnames(sirAntibioticsModel)
+    inputAntibioticsNames <- antibioticsNames
+    numberOfInputAntibiotics <- length(inputAntibioticsNames)
+
+    sirDataFrame <- sirAntibioticsModel
+    file = paste(modelDirectory,"input",paste("sirDataFrame_",sub(" ", "-", mode),".csv",sep=""),  sep="/")
+    write.csv2(x=sirDataFrame,file=file,row.names = TRUE)
+
+    R = apply(sirDataFrame, 2, \(x) sum(x=="R"))    
+    S = apply(sirDataFrame, 2, \(x) sum(x=="S"))    
+    df <- data.frame(S,R)
+    file = paste(modelDirectory,"input",paste("sirStatsPerAntibiotic_",sub(" ", "-", mode),".csv",sep=""),  sep="/")
+    write.csv2(x=df,file=file,row.names = TRUE)
+
+    R = sum(sirDataFrame=="R")    
+    S = sum(sirDataFrame=="S")    
+    df <- data.frame(S,R)
+    file = paste(modelDirectory,"input",paste("sirStats_",sub(" ", "-", mode),".csv",sep=""),  sep="/")
+    write.csv2(x=df,file=file,row.names = TRUE)
+  }
+}
+
+
 
 
 makeWordsDataFrame <- function(sirDataFrame,demographicsDataframe)

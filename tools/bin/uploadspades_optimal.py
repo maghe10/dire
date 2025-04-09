@@ -17,7 +17,7 @@ print(sample)
 
 #move to storage
 output = '/root/sequencing/intermediate/spadesoptimal/sample' + sample
-storage = '/root/sequencing/storage/spadesoptimal/sample' + sample
+storage = '/root/sequencing/storage/spades/optimal/sample' + sample
 
 command = "mkdir -p " + storage
 print(command)

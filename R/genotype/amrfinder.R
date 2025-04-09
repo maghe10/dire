@@ -16,49 +16,71 @@ samples <- samples[samples != "sample38.tsv" ]
 #anotherSample <- samples[2]
 #sample <- anotherSample
 
-summaryColumns <- c('Gene symbol','Sequence name','Scope','Element type','Element subtype','Class','Subclass','Method','Accession of closest sequence')
+sampleNameToNumber <- function(sampleName)
+{
+  as.integer(stringr::str_extract(sampleName, "(\\d+)"))
+}
+
+
+# Older version summaryColumns <- c('Gene symbol','Sequence name','Scope','Element type','Element subtype','Class','Subclass','Method','Accession of closest sequence')
+oldSummaryColumns <- c('Gene symbol','Sequence name','Scope','Element type','Element subtype','Class','Subclass','Method','Accession of closest sequence')
+summaryColumns <- c('Element symbol','Element name','Scope','Type','Subtype','Class','Subclass','Method','Closest reference accession')
 allSummary <- data.frame()
 
+#geneList <- c("pmrB_E123D","glpT_E448K")
+#gene <- geneList[2]
+#sample <- samples[2]
+#aSample <- read_tsv( paste(sep="",dir, "\\" ,sample) ,col_names=TRUE)
+#sampleGeneRow <- cbind(sample=sample,aSample[aSample$`Gene symbol`==gene,])
+
+allSamplesAndAllGenes <- data.frame()
 AMRs <- {}
 for (sample in samples) {
+  # sample <- "sample100.tsv"
   aSample <- read_tsv( paste(sep="",dir, "\\" ,sample) ,col_names=TRUE)
-  aSampleAMR <- aSample[aSample$`Element type` == 'AMR',]
+  #older version aSampleAMR <- aSample[aSample$`Element type` == 'AMR',]
+  aSampleAMR <- aSample[aSample$`Type` == 'AMR',]
   aSampleAMRSummary <- aSampleAMR[,summaryColumns]
+  colnames(aSampleAMRSummary) <- oldSummaryColumns
+  
+  aSampleWithSampleId <- cbind(sampleid=sampleNameToNumber(sample),aSample)
+  allSamplesAndAllGenes <- rbind(allSamplesAndAllGenes,aSampleWithSampleId)
 
-  AMRs <- union(aSampleAMR$`Gene symbol`,AMRs)
+  AMRs <- union(aSampleAMRSummary$`Gene symbol`,AMRs)
 
   toAppend <-aSampleAMRSummary[!aSampleAMRSummary$`Gene symbol` %in% allSummary$`Gene symbol` ,]
   allSummary <- rbind (allSummary,toAppend) 
 }
 
+allSamplesAndAllGenes <- allSamplesAndAllGenes[order(allSamplesAndAllGenes$sampleid),]
+
 allSummary <- allSummary %>% 
   arrange(across(everything()))
 
 
+
+names(samples) <- unlist(sampleNameToNumber(samples))
+sortedSamples <- samples[order(as.integer(names(samples)))]
+
 geneTable <- data.frame(AMRs)
 colnames(geneTable)[ncol(geneTable)] <- 'Gene symbol'
-
-for (sample in samples) {
+for (sample in sortedSamples) {
   aSample <- read_tsv( paste(sep="",dir, "\\" ,sample) ,col_names=TRUE)
-  aSampleAMR <- aSample[aSample$`Element type` == 'AMR',]
+  aSampleAMR <- aSample[aSample$`Type` == 'AMR',]
   
-  geneTable <- cbind(geneTable,AMRs %in% aSampleAMR$`Gene symbol`)
-  colnames(geneTable)[ncol(geneTable)] <- sample
+  geneTable <- cbind(geneTable,AMRs %in% aSampleAMR$`Element symbol`)
+  colnames(geneTable)[ncol(geneTable)] <- sampleNameToNumber(sample)
 }
-
 
 
 statistics = data.frame(geneTable$`Gene symbol`,rowSums(geneTable[-1]))
 colnames(statistics)[1] <- 'Gene symbol' 
 colnames(statistics)[2] <- 'Count'
 
-
-
-sampleNamesAMR <- sort(colnames(geneTable[,c(2:100)]))
-sampleNamesAMR <- substring(sampleNamesAMR,1,nchar(sampleNamesAMR)-4)
+sampleNamesAMR <- colnames(geneTable[,c(2:ncol(geneTable))])
 
 AMRClasses <- unique(allSummary$Class)
-AMRClass <- AMRClasses[4]
+#AMRClass <- AMRClasses[4]
 ClassTable <- data.frame()
 ClassCoreTable <- data.frame()
 for (AMRClass in AMRClasses){
@@ -75,7 +97,6 @@ for (AMRClass in AMRClasses){
   for (n in 2:ncol(aGeneSubtable)){
     bVal <- any(aGeneSubtable[,n])
     bValCore <- any(aGeneCoreSubtable[,n])
-#    print(bVal)
     row = cbind(row,bVal)
     rowCore = cbind(rowCore,bValCore)
   }
@@ -101,20 +122,43 @@ colnames(ClassTable)[1] <- 'Class'
 colnames(ClassCoreTable)[1] <- 'Class'
 
 
-
 statistics <- statistics[order(statistics$`Gene symbol`),]
-             
+geneTable <- geneTable[order(geneTable$`Gene symbol`),]
 
-write.csv2(x= geneTable,row.names = FALSE,file= paste(sep="",outdir, "\\" ,assemblymethod,"_genes_",amrfinderDatabase,".csv"))
-write.csv2(x= statistics,row.names = FALSE,file= paste(sep="",outdir, "\\" ,assemblymethod,"_statistics_",amrfinderDatabase,".csv"))
-write.csv2(x= allSummary,row.names = FALSE,file= paste(sep="",outdir, "\\" ,assemblymethod,"_summary_",amrfinderDatabase,".csv"))
-write.csv2(x= ClassTable,row.names = FALSE,file= paste(sep="",outdir, "\\" ,assemblymethod,"_class_",amrfinderDatabase,".csv"))
-write.csv2(x= ClassCoreTable,row.names = FALSE,file= paste(sep="",outdir, "\\" ,assemblymethod,"_classcore_",amrfinderDatabase,".csv"))
+betalactamGenes <- allSummary[allSummary$Class=="BETA-LACTAM",]$`Gene symbol`
+betalactamCoreGenes <- allSummary[allSummary$Class=="BETA-LACTAM" & allSummary$Scope=="core",]$`Gene symbol`
+betalactamPlusGenes <- allSummary[allSummary$Class=="BETA-LACTAM" & allSummary$Scope=="plus",]$`Gene symbol`
+otherCoreGenes <- allSummary[allSummary$Class!="BETA-LACTAM" & allSummary$Scope=="core",]$`Gene symbol`
+otherPlusGenes <- allSummary[allSummary$Class!="BETA-LACTAM" & allSummary$Scope=="plus",]$`Gene symbol`
 
-write.xlsx(x= geneTable,rowNames = FALSE,file= paste(sep="",outdir, "\\" ,assemblymethod,"_genes_",amrfinderDatabase,".xlsx"))
-write.xlsx(x= statistics,rowNames = FALSE,file= paste(sep="",outdir, "\\" ,assemblymethod,"_statistics_",amrfinderDatabase,".xlsx"))
-write.xlsx(x= allSummary,rowNames = FALSE,file= paste(sep="",outdir, "\\" ,assemblymethod,"_summary_",amrfinderDatabase,".xlsx"))
-write.xlsx(x= ClassTable,rowNames = FALSE,file= paste(sep="",outdir, "\\" ,assemblymethod,"_class_",amrfinderDatabase,".xlsx"))
-write.xlsx(x= ClassCoreTable,rowNames = FALSE,file= paste(sep="",outdir, "\\" ,assemblymethod,"_classcore_",amrfinderDatabase,".xlsx"))
+betalactamGeneTable <- geneTable[geneTable$`Gene symbol` %in% betalactamGenes,]
+betalactamCoreGeneTable <- geneTable[geneTable$`Gene symbol` %in% betalactamCoreGenes,]
+betalactamPlusGeneTable <- geneTable[geneTable$`Gene symbol` %in% betalactamPlusGenes,]
+otherCoreGeneTable <- geneTable[geneTable$`Gene symbol` %in% otherCoreGenes,]
+otherPlusGeneTable <- geneTable[geneTable$`Gene symbol` %in% otherPlusGenes,]
+
+betalactamCoreSummary <- allSummary[allSummary$Class=="BETA-LACTAM" & allSummary$Scope=="core",]
 
 
+WRITE_TABLES <- function()
+{
+  write.xlsx(x= geneTable,rowNames = FALSE,file= paste(sep="",outdir, "\\" ,assemblymethod,"_genes-in-samples_",amrfinderDatabase,".xlsx"))
+  write.xlsx(x= betalactamGeneTable,rowNames = FALSE,file= paste(sep="",outdir, "\\" ,assemblymethod,"_betalactam-genes-in-samples_",amrfinderDatabase,".xlsx"))
+  write.xlsx(x= betalactamCoreGeneTable,rowNames = FALSE,file= paste(sep="",outdir, "\\" ,assemblymethod,"_betalactam-core-genes-in-samples_",amrfinderDatabase,".xlsx"))
+  write.xlsx(x= betalactamPlusGeneTable,rowNames = FALSE,file= paste(sep="",outdir, "\\" ,assemblymethod,"_betalactam-plus-genes-in-samples_",amrfinderDatabase,".xlsx"))
+  
+  write.xlsx(x= statistics,rowNames = FALSE,file= paste(sep="",outdir, "\\" ,assemblymethod,"_gene-statistics_",amrfinderDatabase,".xlsx"))
+  write.xlsx(x= allSummary,rowNames = FALSE,file= paste(sep="",outdir, "\\" ,assemblymethod,"_gene-summary_",amrfinderDatabase,".xlsx"))
+  write.xlsx(x= betalactamCoreSummary,rowNames = FALSE,file= paste(sep="",outdir, "\\" ,assemblymethod,"_betalactam-core-summary_",amrfinderDatabase,".xlsx"))
+  write.xlsx(x= ClassTable,rowNames = FALSE,file= paste(sep="",outdir, "\\" ,assemblymethod,"_class-in-samples_",amrfinderDatabase,".xlsx"))
+  write.xlsx(x= ClassCoreTable,rowNames = FALSE,file= paste(sep="",outdir, "\\" ,assemblymethod,"_classcore-in-samples_",amrfinderDatabase,".xlsx"))
+  
+  write.xlsx(x= allSamplesAndAllGenes,rowNames = FALSE,file= paste(sep="",outdir, "\\" ,assemblymethod,"_allSamplesAndAllGenes_",amrfinderDatabase,".xlsx"))
+}
+
+
+
+ALL <- function()
+{
+  WRITE_TABLES()
+}

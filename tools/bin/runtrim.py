@@ -43,7 +43,7 @@ print(samples)
 
 
 
-os.chdir("/root/sequencing/tools/bin")
+os.chdir("/root/dire/program/tools/bin")
 
 for sample in samples:
    os.system("python trimgalore_dire.py -s " + sample)

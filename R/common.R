@@ -1,25 +1,29 @@
 library(readr)
 
-
-#assemblymethod <- 'spades_standard'
-assemblymethod <- 'unicycler_normal'
-#assemblymethod <- 'spades_optimized'
-#assemblymethod <- 'unicycler_conservative'
-
-#direRoot <- '/root/sequencing/dire/'
-
-#direRoot <- 'C:/Users/magnu/OneDrive - Västra Götalandsregionen/DIRE/'
-#direRoot <- 'C:/Users/HP/OneDrive - Västra Götalandsregionen/DIRE/'
-direRoot <- paste(Sys.getenv("USERPROFILE"),"OneDrive - Västra Götalandsregionen","DIRE",sep="\\")
+oneDriveRoot <- paste(Sys.getenv("USERPROFILE"),"OneDrive - Västra Götalandsregionen",sep="\\")
+direRoot <- paste(oneDriveRoot,"DIRE",sep="\\")
 
 
 # Different directories for code
 
-workingDirectory <- paste(direRoot,"Analyser/R",sep="/")
+rRoot <- paste(oneDriveRoot,"git","dire","R",sep="\\")
+
+workingDirectory <- rRoot
+
+
+assemblymethod <- 'spades_standard'
+#assemblymethod <- 'unicycler_normal'
+#assemblymethod <- 'spades_optimized'
+#assemblymethod <- 'unicycler_conservative'
 
 assemblyDirectory <- paste(direRoot,assemblymethod,"assembly",sep="/")
-amrfinderDatabase <- "231115.1"
+#amrfinderDatabase <- "231115.1"
+amrfinderDatabase <- "2024-12-18.1"
 amrfinderDirectory <- paste(direRoot,assemblymethod,"amrfinder",amrfinderDatabase,sep="/")
+
+resfinderDatabase <- "v460"
+resfinderDirectory <- paste(direRoot,assemblymethod,"resfinder",resfinderDatabase,sep="/")
+
 qualityDirectory <- paste(direRoot,assemblymethod,"quality",sep="/")
 tygsDirectory <- paste(qualityDirectory,"TYGS",sep="/")
 jspecieswsDirectory <- paste(qualityDirectory,"jspeciesws",sep="/")
@@ -46,7 +50,6 @@ setwd(workingDirectory)
 
 filesInroot <- list.files(direRoot)
 filesInWd <- list.files(workingDirectory)
-filesInStorage <- list.files(workingDirectory)
 filesInPprocessedRootR <- list.files(processedRootR)
 
 sampleAsColumns <- function(dataframe)

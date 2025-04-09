@@ -43,11 +43,11 @@ print(samples)
 
 
 
-os.chdir("/root/sequencing/tools/bin")
+os.chdir("/root/dire/program/tools/bin")
 
 tmpdir = "/root/sequencing/intermediate/tmp/"
 
-quastdir = "/root/sequencing/storage/quast/"
+quastdir = "/root/sequencing/storage/quast/unicycler_conservative/"
 
 for sample in samples:
 	finddir = quastdir + "sample" + sample + "/" 

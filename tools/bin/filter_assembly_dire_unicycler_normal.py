@@ -16,7 +16,7 @@ print(sample)
 #filter optimal spades assembly, At least 500 bp
 assembly = '/root/sequencing/storage/unicycler/normal/sample' + sample + "/assembly.fasta"
 path_to_program = 'seqkit'
-outputdir = '/root/sequencing/storage/assembly_unicycler_normal'
+outputdir = '/root/sequencing/storage/assembly/unicycler_normal'
 output = outputdir + "/sample"+ sample + ".fasta"
 
 invoke = "mkdir -p " + outputdir

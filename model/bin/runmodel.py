@@ -3,10 +3,9 @@ import sys
 import subprocess # just to call an arbitrary command e.g. 'ls'
 
 
-BIN_PATH = "/root/sequencing/dire/model/bin"
-DIRE_PATH = "/root/sequencing/dire/model/dire"
-SIR_FILE = "input/sirAntibioticsModelWordsNoDate_Mode-C.csv"
-PROCESSED_PATH = "/root/sequencing/dire/Analyser/processed/R/model/tmp"
+BIN_PATH = "/root/dire/data//model/bin"
+DIRE_PATH = "/root/dire/data//model/dire"
+PROCESSED_PATH = "/root/dire/data//Analyser/processed/R/model"
 
 class cd:
   def __init__(self, newPath):
@@ -36,6 +35,12 @@ parser.add_argument("-choices", "--number_of_choices", default=None, type=int,
                     help='Give a value 1 and 14')
 parser.add_argument("-signi", "--significant_level", default=None, nargs='+', type=float,
                     help='Give a value between 0 and 1. If none is given, then conformal prediction is not applied')
+
+parser.add_argument("-outfolder", "--output_folder",default=PROCESSED_PATH)
+
+
+#SIR_FILE = "input/sirAntibioticsModelWordsNoDate_Mode-C.csv"
+parser.add_argument("-sir", "--load_sir_csvfile", default=None)
 args = parser.parse_args()
 
 
@@ -67,7 +72,7 @@ if __name__ == '__main__':
   with cd(PROCESSED_PATH):
     modelOutput = pd.read_csv('input/modelOutput'+ str(myChoices) + '.csv',sep = ";",dtype=str)
     combinationsInput = pd.read_csv('input/combinations'+ str(myChoices) + '.csv',sep = ";",dtype=str)
-    sirAntibioticsWords = pd.read_csv(SIR_FILE,sep = ";")
+    sirAntibioticsWords = pd.read_csv('input/'+args.load_sir_csvfile,sep = ";")
   
     tmpModelOutputPreds = modelOutput.copy()
     tmpModelOutputAnswer = modelOutput.copy()
@@ -107,7 +112,7 @@ if __name__ == '__main__':
           for level in mySignificant_levels:
             tmpModelOutputConfPredsList[index].to_csv('modelOutput_confpreds_'+ str(myChoices) + "_" + str(level).replace(".","") + '_tmp.csv',sep = ";",index=False)
             index = index + 1
-  with cd(PROCESSED_PATH):
+  with cd(args.output_folder):
     tmpModelOutputPreds.to_csv('modelOutput_preds_'+ str(myChoices) + '.csv',sep = ";",index=False)
     tmpModelOutputAnswer.to_csv('modelOutput_answer_'+ str(myChoices) + '.csv',sep = ";",index=False)  
     index = 0

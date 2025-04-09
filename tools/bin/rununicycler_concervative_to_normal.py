@@ -46,7 +46,7 @@ print(samples)
 
 
 
-os.chdir("/root/sequencing/tools/bin")
+os.chdir("/root/dire/program/tools/bin")
 
 
 

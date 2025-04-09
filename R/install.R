@@ -2,7 +2,8 @@
 install.packages("dplyr")
 install.packages("readxl")
 install.packages("pheatmap")
-install.packages("openxlsx")
+#install.packages("openxlsx")
+install.packages("writexl")
 
 install.packages("tidyverse") 
 install.packages("cluster")   
@@ -14,3 +15,5 @@ install.packages("stringr")
 
 install.packages("png")
 install.packages("reticulate")
+install.packages("gridpattern")
+

@@ -17,10 +17,10 @@ print("\nSample: ")
 print(sample)
 
 
-input = '/root/sequencing/storage/assembly_unicycler_conservative/sample' + sample + '.fasta'
+input = '/root/sequencing/storage/assembly/unicycler_conservative/sample' + sample + '.fasta'
 print(input)
 
-outputdir = '/root/sequencing/storage/amrfinder_unicycler_conservative'
+outputdir = '/root/sequencing/storage/amrfinder/unicycler_conservative'
 output = outputdir + "/sample"+ sample + ".tsv"
 
 invoke = "mkdir -p " + outputdir

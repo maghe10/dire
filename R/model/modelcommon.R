@@ -2,54 +2,132 @@ source(file = 'common.R')
 library(stringr)
 
 
-MODE <- "ModeA"
+METRICS_COLS <- c("correct","ME","VME")
+
+BEST_ABS <- list (  
+  c ("AMP","CRO","CIP","TOB") , 
+  c("AMP","AMC","CRO","CIP","OFX","TOB"),  
+  c("AMC","PIP","TZP","CAZ","CRO","CIP","OFX","TOB"))
+BEST_ALT <- list(
+  c("AMC","CTX","OFX","GEN"),
+  c("PIP","TZP","CTX","LVX","MFX","GEN"),
+  c("AMC" ,"TZP" ,"CAZ", "CTX", "FEP", "OFX","LVX" ,"GEN"),
+  c("AMP", "PIP" ,"CRO","CTX","FEP", "CIP", "MFX" ,"TOB"))
+
+SELECTED <- append(BEST_ABS,BEST_ALT)
+
+
+COMPARE_CORRECT <- "correct"
+COMPARE_VME <- "VME"
+COMPARE_ME <- "ME"
+COMPARE_PREDICTED <- "predicted"
+COMPARE_AMBIGUOUS <- "ambiguous"
+COMPARE_PREDICTED_OR_AMBIGUOUS <- "predorambiguous"
+COMPARE_NOT_PREDICTED <- "notpredicted"
+
+
+
+#MODE <- "Mode-A"
+#MODE <- "Mode-B"
+#MODE <- "Mode-C"
 minusAMC <- FALSE
 
-if(!minusAMC)
-  {
-  PREDICTION_BASE <-
-  paste(modelDirectory,
-        "output",
-        MODE,
-        sep = "/")
-  NUMBER_OF_ANTIBIOTICS <- 14
-  ANTIBIOTICS = c("AMP",	"AMC"	,"PIP"	,"TZP",	"CAZ",	"CRO",	"CTX"	,"FEP"	,"CIP"	,"OFX"	,"LVX"	,"MFX"	,"GEN"	,"TOB")
-  PASCAL = c(14,91,364,1001,2002,3003,3432,3003,2002,1001,364,91,14)
-} else {
-  PREDICTION_BASE <-
-    paste(modelDirectory,
-          "output",
-          MODE,
-          "minusAMC",
-          sep = "/")
-  NUMBER_OF_ANTIBIOTICS <- 13
-  ANTIBIOTICS = c("AMP",	"PIP"	,"TZP",	"CAZ",	"CRO",	"CTX"	,"FEP"	,"CIP"	,"OFX"	,"LVX"	,"MFX"	,"GEN"	,"TOB")
-  PASCAL = c(13,78,286,715,1287,1716,1716,1287,715,286,78,13)
+if(!minusAMC) {
+	  NUMBER_OF_ANTIBIOTICS <- 14
+	  ANTIBIOTICS = c("AMP",	"AMC"	,"PIP"	,"TZP",	"CAZ",	"CRO",	"CTX"	,"FEP"	,"CIP"	,"OFX"	,"LVX"	,"MFX"	,"GEN"	,"TOB")
+	  PASCAL = c(14,91,364,1001,2002,3003,3432,3003,2002,1001,364,91,14)
+	} else {
+	  NUMBER_OF_ANTIBIOTICS <- 13
+	  ANTIBIOTICS = c("AMP",	"PIP"	,"TZP",	"CAZ",	"CRO",	"CTX"	,"FEP"	,"CIP"	,"OFX"	,"LVX"	,"MFX"	,"GEN"	,"TOB")
+	  PASCAL = c(13,78,286,715,1287,1716,1716,1287,715,286,78,13)
+}
+	
+
+getPredictionBase <- function(mode){
+	if(!minusAMC)
+	  {
+	  PREDICTION_BASE <-
+	  paste(modelDirectory,
+	        "output",
+	        mode,
+	        sep = "/")
+	} else {
+	  PREDICTION_BASE <-
+	    paste(modelDirectory,
+	          "output",
+	          mode,
+	          "minusAMC",
+	          sep = "/")
+	}
+	#PREDICTION_BASE <-
+	#  paste(modelDirectory,
+	#        "finished",
+	#        "I_to_R_noDate",
+	#        "SR_as_word",
+	#        sep = "/")
+	PREDICTION_BASE
 }
 
-#PREDICTION_BASE <-
-#  paste(modelDirectory,
-#        "finished",
-#        "I_to_R_noDate",
-#        "SR_as_word",
-#        sep = "/")
 
-
-
-PREDICTION_FOLDER <-
-  paste(PREDICTION_BASE,
+getPredictionFolder <- function(mode)
+{
+	paste(getPredictionBase(mode),
         "preds",
         sep = "/")
-COMPARE_FOLDER <- paste(PREDICTION_BASE,"compare", sep = "\\")
+		
+}
 
-STATISTICS_FOLDER <- paste(PREDICTION_BASE,"statistics", sep = "\\")
+getCompareFolder <-function(mode)
+{
+	paste(getPredictionBase(mode),"compare", sep = "\\")	
+}
 
-STATISTICS_BEST_FOLDER <- paste(STATISTICS_FOLDER,"best", sep = "\\")
-STATISTICS_SAMPLE_WORDS_FOLDER <- paste(STATISTICS_FOLDER,"words", sep = "\\")
 
-STATISTICS_METRICS_FOLDER <- paste(STATISTICS_FOLDER,"metrics", sep = "\\")
-STATISTICS_SAMPLE_METRICS_FOLDER <- paste(STATISTICS_METRICS_FOLDER,"samples", sep = "\\")
-STATISTICS_ANTIBIOTICS_METRICS_FOLDER <- paste(STATISTICS_METRICS_FOLDER,"antibiotics", sep = "\\")
+getStatisticsFolder <-function(mode)
+{
+	paste(getPredictionBase(mode),"statistics", sep = "\\")	
+}
+
+getStatisticsTmpFolder <-function(mode)
+{
+  paste(getStatisticsFolder(mode),"tmp", sep = "\\")
+  
+}
+
+getStatisticsSubsetFolder <-function(mode)
+{
+  paste(getStatisticsFolder(mode),"subset", sep = "\\")
+}
+
+
+
+getStatisticsBestFolder <-function(mode)
+{
+	paste(getStatisticsFolder(mode),"best", sep = "\\")
+
+}
+
+getStatisticsSampleWordFolder <-function(mode)
+{
+	paste(getStatisticsFolder(mode), "words", sep = "\\")
+
+}
+
+getStatisticsMetricsFolder <- function(mode)
+{
+	paste(getStatisticsFolder(mode), "metrics", sep = "\\")
+}
+
+getStatisticsSampleMetricsFolder <- function(mode)
+{
+	paste(getStatisticsMetricsFolder(mode),"samples", sep = "\\")
+}
+
+getStatisticsAntibioticsMetricsFolder <- function(mode)
+{
+	paste(getStatisticsMetricsFolder(mode),"antibiotics", sep = "\\")
+}
+
 
 TEMP_FOLDER <- paste(modelDirectory, "temp", sep = "\\")
 
@@ -137,36 +215,12 @@ readOutputFrame <-
   function(k,
            signi = NULL ,
            type,
-           folder = PREDICTION_FOLDER)
+           folder)
   {
     shortfile <- makeShortFileName(type,k,signi)
     readOutputFrameShort(shortfile = shortfile,folder = folder)
   }
 
-# readOutputFrame <-
-#   function(k,
-#            signi = NULL ,
-#            type,
-#            folder = PREDICTION_FOLDER)
-#   {
-#     if (is.null(signi)) {
-#       shortfile <-   paste("modelOutput_", type, "_", k, ".csv", sep = "")
-#     }
-#     else {
-#       shortfile <-
-#         paste("modelOutput_", type, "_", k, "_", signi, ".csv", sep = "")
-#     }
-#     file <- paste(folder, shortfile,  sep = "/")
-#     frame <- read.csv2(file = file, row.names = "sample")
-#     cn <- colnames(frame)
-#     index  <- grep("^X$", colnames(frame))
-#     returnFrame <- frame
-#     #There might be a first index column
-#     if (length(index) > 0) {
-#       returnFrame <- frame[, -index]
-#     }
-#     returnFrame
-#   }
 
 writeOutputFrameShort  <-
   function(frame,

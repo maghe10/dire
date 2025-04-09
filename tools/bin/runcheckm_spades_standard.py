@@ -14,7 +14,7 @@
 
 import os
 
-os.chdir("/root/sequencing/tools/bin")
+os.chdir("/root/dire/program/tools/bin")
 os.system("mkdir -p /root/sequencing/intermediate/checkm_spades_standard/")
-os.system("checkm lineage_wf -r -t 1 -x fasta /root/sequencing/dire/spades_standard/assembly /root/sequencing/intermediate/checkm_spades_standard/")
+os.system("checkm lineage_wf -r -t 1 -x fasta /root/dire/data//spades_standard/assembly /root/sequencing/intermediate/checkm_spades_standard/")
 os.system("checkm qa /root/sequencing/intermediate/checkm_spades_standard/lineage.ms /root/sequencing/intermediate/checkm_spades_standard/ --tab_table -f /root/sequencing/intermediate/checkm_spades_standard/qa_spades_standard.tsv")

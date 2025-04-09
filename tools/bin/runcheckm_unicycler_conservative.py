@@ -14,7 +14,7 @@
 
 import os
 
-os.chdir("/root/sequencing/tools/bin")
+os.chdir("/root/dire/program/tools/bin")
 os.system("mkdir -p /root/sequencing/intermediate/checkm_unicycler_conservative/")
-os.system("checkm lineage_wf -r -t 1 -x fasta /root/sequencing/dire/unicycler_conservative/assembly /root/sequencing/intermediate/checkm_unicycler_conservative/")
+os.system("checkm lineage_wf -r -t 1 -x fasta /root/dire/data//unicycler_conservative/assembly /root/sequencing/intermediate/checkm_unicycler_conservative/")
 os.system("checkm qa /root/sequencing/intermediate/checkm_unicycler_conservative/lineage.ms /root/sequencing/intermediate/checkm_unicycler_conservative/ --tab_table -f /root/sequencing/intermediate/checkm_unicycler_conservative/qa_unicycler_conservative.tsv")

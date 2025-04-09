@@ -17,9 +17,9 @@ print(sample)
 
 #mkdir -p /root/sequencing/intermediate/quest/sample2
 #quast.py /root/sequencing/intermediate/spades/sample2/contigs.fasta -o /root/sequencing/intermediate/quast/sample2
-contigs = '/root/sequencing/storage/assembly_unicycler_normal/sample' + sample + ".fasta"
+contigs = '/root/sequencing/storage/assembly/unicycler_normal/sample' + sample + ".fasta"
 path_to_program = 'quast.py'
-output = '/root/sequencing/intermediate/quast_unicycler_normal/sample' + sample
+output = '/root/sequencing/intermediate/quast/unicycler_normal/sample' + sample
 os.makedirs("output", exist_ok=True)
 
 invoke = path_to_program + " --gene-finding -o " + output + " " + contigs
