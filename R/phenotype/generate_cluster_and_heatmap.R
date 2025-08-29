@@ -18,6 +18,7 @@ library(gridpattern)
 #BiocManager::install("ComplexHeatmap")  # Install ComplexHeatmap
 
 source(file='common.R')
+source(file='manuscript/manuscriptcommon.R')
 MODE <- "Mode-A"
 source(file='model/modelcommon.R')
 
@@ -40,8 +41,7 @@ allAntibioticsWithZonesInputNames <- c("F",	"MEL","CFR",	"W",	"CIP",	"AMC",	"CTX
 
 allAntibioticsInModel <- c("AMP",	"AMC","PRL","TZP", "CAZ","CRO",	"CTX"	,"FEP", "CIP","OFX"	,"LEV","MFX","CN", "TOB" )
 
-allAntibioticsInModelModelNames <- c("AMP","AMC","PIP","TZP","CAZ","CRO","CTX","FEP","CIP","OFX","LVX","MFX","GEN","TOB")
-
+allAntibioticsInModelModelNames <- ALL_ANTIBIOTICS_IN_MODEL
 
 allAntibioticsWithBreakpointNames <- c("F",	"MEL","CFR",	"W",	"CIP",	"AMC",	"CTX",	"CAZ"	,"MEM",	"TOB",	"TZP",	"SXT",	
                                        "FEP", "AMP"	,"PIP",	"GEN"	,"CRO",	"LVX","MFX",	"OFX")
@@ -53,6 +53,9 @@ allAntibioticsWithInvasiveSirInputColumns <- c("CIP",	"AMC",	"CTX",	"CAZ"	,"MEM"
 
 allAntibioticsWithUTISirInputColumns <- c("F",	"MEL","CFR",	"W")
 
+
+INPUT_ANTIBIOTICS <- 6
+#INPUT_ANTIBIOTICS <- 13
 
 #studieNummerColumn <- c("Studienummer")
 #demographicsInputColumns <-c("Datum", "Kön",	"Ålder")
@@ -114,10 +117,9 @@ readMillimetertable <- function()
 readPredictionsTable <- function(compare)
 {
   #compare = "ME"
-  base <- "percentagePredictions"
-  xxx <- readStatisticsFrame(name=paste(base,compare,fixSigni(NA),6,sep="-"),folder=getStatisticsSampleMetricsFolder(MODE))
-  xxx
-}
+  name <- paste(tolower(compare),"RateSampleVsAntibiotic","-",INPUT_ANTIBIOTICS,sep="")
+  readStatisticsExcel(name)
+ }
 
 
 # clusterOn  <- function(millimeterTable,centers) 
@@ -561,7 +563,7 @@ makeClusterPlot <- function(name,caa)
 fetchTables<- function(){
   millimeterTable <- readMillimetertable()
   rownames(millimeterTable) <- millimeterTable$sample
-  modelMillimeterTable <- millimeterTable %>% select(allAntibioticsInModelModelNames)
+  modelMillimeterTable <- millimeterTable %>% select(all_of(allAntibioticsInModelModelNames))
   
   sirAntibiotics <-  readSirAntibioticsModel()
   
@@ -608,8 +610,10 @@ fetchOptimalClusterSizeList <-function() {
 fetchPredictionsTable <- function(compare)
 {
   table <- readPredictionsTable(compare)
-  rownames(table) <- table$sample
-  table %>% select(allAntibioticsInModelModelNames)
+  sampleId <- table$sample
+  table <- as.data.frame(table %>% select(all_of(allAntibioticsInModelModelNames)))
+  rownames(table) <- sampleId
+  table
 }
 
 

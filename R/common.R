@@ -1,5 +1,14 @@
 library(readr)
 
+
+
+MODE_A <- "Mode-A"
+MODE_B <- "Mode-B"
+MODE_C <- "Mode-C"
+
+MODES <- c(MODE_A,MODE_B,MODE_C)
+
+
 oneDriveRoot <- paste(Sys.getenv("USERPROFILE"),"OneDrive - Västra Götalandsregionen",sep="\\")
 direRoot <- paste(oneDriveRoot,"DIRE",sep="\\")
 

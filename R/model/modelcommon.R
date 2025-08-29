@@ -1,6 +1,7 @@
 source(file = 'common.R')
 library(stringr)
 
+modelVersion <- "250410"
 
 METRICS_COLS <- c("correct","ME","VME")
 
@@ -25,6 +26,8 @@ COMPARE_AMBIGUOUS <- "ambiguous"
 COMPARE_PREDICTED_OR_AMBIGUOUS <- "predorambiguous"
 COMPARE_NOT_PREDICTED <- "notpredicted"
 
+#Names in the model, and basic order in which they should
+ALL_ANTIBIOTICS_IN_MODEL <- c("AMP","AMC","PIP","TZP","CAZ","CRO","CTX","FEP","CIP","OFX","LVX","MFX","GEN","TOB")
 
 
 #MODE <- "Mode-A"
@@ -49,12 +52,14 @@ getPredictionBase <- function(mode){
 	  PREDICTION_BASE <-
 	  paste(modelDirectory,
 	        "output",
+	        modelVersion,
 	        mode,
 	        sep = "/")
 	} else {
 	  PREDICTION_BASE <-
 	    paste(modelDirectory,
 	          "output",
+	          modelVersion,
 	          mode,
 	          "minusAMC",
 	          sep = "/")
@@ -131,7 +136,8 @@ getStatisticsAntibioticsMetricsFolder <- function(mode)
 
 TEMP_FOLDER <- paste(modelDirectory, "temp", sep = "\\")
 
-signis = c("001", "0025", "005", "01")
+signis = c("0025", "005", "01")
+#signis = c("001", "0025", "005", "01")
 range <- 1:(NUMBER_OF_ANTIBIOTICS - 1)
 
 

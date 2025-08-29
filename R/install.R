@@ -16,4 +16,4 @@ install.packages("stringr")
 install.packages("png")
 install.packages("reticulate")
 install.packages("gridpattern")
-
+install.packages('R.utils')

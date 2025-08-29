@@ -18,3 +18,8 @@ model/install/bert_updated.pt
 tools/bin/.Rhistory
 /tools/confindr/databases
 /tools/confindr/ConFindr
+R/log250410.log
+R/all.log
+R/genotype/.Rhistory
+R/model/run.Rout
+R/Rplots.pdf

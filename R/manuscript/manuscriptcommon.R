@@ -1,6 +1,7 @@
 ###########
 
-source(file = 'common.R')
+#source(file = 'common.R')
+source(file = 'model/modelcommon.R')
 library(scales)
 
 # FIXME migrate to readxl
@@ -23,20 +24,12 @@ format_percent <- function(x) {
   paste0(formatted, "%")
 }
 
-getModeRootStatisticsFolder <- function(mode)
-{
-  paste(modelDirectory,
-        "output",
-        mode,
-        "statistics",
-        sep = "/")
-}
 
 readStatisticsFrameCSV  <-
   function(name,
            subfolder="",mode)
   {
-    file <- paste(getModeRootStatisticsFolder(mode),subfolder,paste(name,"csv",sep="."),  sep = "/")
+    file <- paste(getStatisticsFolder(mode),subfolder,paste(name,"csv",sep="."),  sep = "/")
     
     read.csv2(file = file,check.names = FALSE)
   } 
