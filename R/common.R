@@ -1,6 +1,16 @@
 library(readr)
 
 
+# Anders last model
+#modelVersion <- "250410"
+
+#Juans first model
+#modelVersion <- "251111"
+
+#Juans first model with correct patient data
+modelVersion <- "251119"
+
+
 
 MODE_A <- "Mode-A"
 MODE_B <- "Mode-B"
@@ -50,7 +60,8 @@ processedRoot <- paste(direRoot,"Analyser","processed", sep="/")
 processedRootR <-  paste(processedRoot,"R", sep="/")
 processedRootRassembly <- paste(processedRootR,assemblymethod, sep="/")
 modelDirectory <-  paste(processedRootR,"model", sep="/")
-manuscriptDirectory <-  paste(processedRootR,"manuscript", sep="/")
+manuscriptDirectory <-  paste(processedRootR,"manuscript", modelVersion, sep="/")
+manuscriptPlotDirectory <- paste(manuscriptDirectory,"plot", sep="/")
 
 processedRootExcel <-  paste(processedRoot,"Excel", sep="/")
 

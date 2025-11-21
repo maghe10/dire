@@ -138,27 +138,45 @@ GENERATE_STATISTICS_NON_ATU <- function()
 }
 
 
+GENERATE_SAMPLE_METRICS <- function(name = "allStats_sample",prefix=NA,folder = getStatisticsFolder(MODE))
+{
+  abSampleErrorStatisticsAll <- errorStatisticsPerAntibiotic(name,folder) %>% reorderAntibioticsRows()
+  abSampleErrorStatisticsCount <- abSampleErrorStatisticsAll %>% dplyr::select(-c(correct_frac,VME_frac,ME_frac))
+  abSampleErrorStatisticsFrac <- abSampleErrorStatisticsAll %>% dplyr::select(noinputab,significanceLevel,antibiotic,sample,correct=correct_frac,VME=VME_frac,ME=ME_frac)
+  
+  namebase <- "abSampleErrorStatistics"
+  if(!is.na(prefix)){
+    namebase <- paste (prefix,namebase,sep="-")
+  }
+  writeStatisticsFrame(abSampleErrorStatisticsCount,  name = paste(namebase, "Count",sep=""),folder)
+  writeStatisticsFrame(abSampleErrorStatisticsFrac, name = paste(namebase, "Frac",sep=""),folder)
+  
+}
+  
 GENERATE_METRICS_ALT <- function(name = "allStats_sum",prefix=NA,folder = getStatisticsFolder(MODE))
 {
 
-  errorStatisticsFull <- errorStatistics(name,folder)
-  errorStatistics <- errorStatisticsFull %>% dplyr::select(noinputab,significanceLevel, correct=correct_frac,VME=VME_frac,ME=ME_frac)
-
+  errorStatisticsAll <- errorStatistics(name,folder)
+  errorStatisticsFrac <- errorStatisticsAll %>% dplyr::select(noinputab,significanceLevel, correct=correct_frac,VME=VME_frac,ME=ME_frac)
+  errorStatisticsCount <- errorStatisticsAll %>% dplyr::select(-c(correct_frac,VME_frac,ME_frac))
+  
   namebase <- "errorStatistics"
   if(!is.na(prefix)){
     namebase <- paste (prefix,namebase,sep="-")
   }
-  writeStatisticsFrame(errorStatisticsFull, name = paste(namebase, "Full",sep=""),folder)
-  writeStatisticsFrame(errorStatistics, name = namebase,folder)
+  writeStatisticsFrame(errorStatisticsCount, name = paste(namebase, "Count",sep=""),folder)
+  writeStatisticsFrame(errorStatisticsFrac, name = paste(namebase, "Frac",sep=""),folder)
 
-  abErrorStatisticsFull <- errorStatisticsPerAntibiotic(name,folder) %>% reorderAntibioticsRows()
-  abErrorStatistics <- abErrorStatisticsFull %>% dplyr::select(noinputab,significanceLevel,antibiotic,correct=correct_frac,VME=VME_frac,ME=ME_frac)
+  abErrorStatisticsAll <- errorStatisticsPerAntibiotic(name,folder) %>% reorderAntibioticsRows()
+  abErrorStatisticsFrac <- abErrorStatisticsAll %>% dplyr::select(noinputab,significanceLevel,antibiotic,correct=correct_frac,VME=VME_frac,ME=ME_frac)
+  abErrorStatisticsCount <- abErrorStatisticsAll %>% dplyr::select(-c(correct_frac,VME_frac,ME_frac))
+  
   namebase <- "abErrorStatistics"
   if(!is.na(prefix)){
     namebase <- paste (prefix,namebase,sep="-")
   }
-  writeStatisticsFrame(abErrorStatisticsFull,  name = paste(namebase, "Full",sep=""),folder)
-  writeStatisticsFrame(abErrorStatistics, name = namebase,folder)
+  writeStatisticsFrame(abErrorStatisticsCount,  name = paste(namebase, "Count",sep=""),folder)
+  writeStatisticsFrame(abErrorStatisticsFrac, name = paste(namebase, "Frac",sep=""),folder)
 }
 
 
@@ -654,7 +672,6 @@ errorStatisticsPerAntibiotic <- function(name="allStats_sum",folder = getStatist
       rv <- rbind(rv,summary_mutated)
     }
   }
-  #rv %>% dplyr::filter(noinputab==4,is.na(significanceLevel))
   rv
 }
 
@@ -666,6 +683,14 @@ errorStatistics <- function(name="allStats_sum",folder = getStatisticsFolder(MOD
   
   allStats <- readStatisticsFrame(name,folder)
 
+  collapse_antibiotics <- function(df) {
+    df %>%
+      dplyr::group_by(noinputab, metric, significanceLevel) %>%
+      dplyr::summarise(count = sum(count, na.rm = TRUE), .groups = "drop")
+  }
+  
+  collapsed <- collapse_antibiotics(allStats)
+  
   allMetricsCount <- allStats %>% dplyr::group_by(noinputab,significanceLevel,metric) %>% dplyr::summarize(count=sum(count), .groups = "drop") %>% tidyr::pivot_wider(names_from=metric,values_from = count)
   
 #  sanitycheck <- allMetricsCount %>% dplyr::summarize(noinputab, significanceLevel,total, ME_VME_NOTPREDICTED = falseS+falseR+notpredicted, correctAmbigous = correct + ambiguous)
@@ -677,9 +702,14 @@ errorStatistics <- function(name="allStats_sum",folder = getStatisticsFolder(MOD
         ME_frac=(falseR+notpredictedS)/total
       )
   #summary_mutated %>%  dplyr::select(noinputab,significanceLevel,correct,VME,ME,VME_frac_norm_alt,ME_frac_norm_alt)
-    
-    
-  summary_mutated
+  summary_mutated %>%
+    dplyr::arrange(noinputab, significanceLevel)
+  
+  # F1_metrics <- calcPRMicro(collapsed)
+  # rvWithF1 <- cbind(summary_mutated %>%
+  #                     arrange(noinputab, significanceLevel),F1_metrics %>% select(precision, recall,f1=f1_micro))
+  # #rv %>% dplyr::filter(noinputab==4,is.na(significanceLevel))
+  # rvWithF1
 }
 
 
@@ -731,22 +761,21 @@ ALL <-  function()
 {
   checkDirs()
   
-  print("GENERATE_RISK_STRATIFIED_STATISTICS")
+  GENERATE_METRICS_ALT()
   GENERATE_RISK_STRATIFIED_STATISTICS()
-  
-  print("Sample statistics")
+  GENERATE_SAMPLE_METRICS()
   SStatisticsAbSample()
   RStatisticsAbSample()
   
-  print("GENERATE_METRICS_ALT")
-  GENERATE_METRICS_ALT()
-  
-  print("One per ab ")
-  GENERATE_METRICS_ALT(name="oneperabgroup_allStats_sum",prefix="oneperabgroup")
-  GENERATE_RISK_STRATIFIED_STATISTICS(name="oneperabgroup_allStats_sum",prefix="oneperabgroup")
-  SStatisticsAbSample(name="oneperabgroup_allStats_sample",prefix="oneperabgroup")
-  RStatisticsAbSample(name="oneperabgroup_allStats_sample",prefix="oneperabgroup")
-  
+  #subgroup stats
+  for(aPrefix in SUBGROUPS){
+    GENERATE_METRICS_ALT(paste(aPrefix,"allStats_sum",sep="_"),prefix=aPrefix)
+    GENERATE_RISK_STRATIFIED_STATISTICS(paste(aPrefix,"allStats_sum",sep="_"),prefix=aPrefix)
+    GENERATE_SAMPLE_METRICS(paste(aPrefix,"allStats_sample",sep="_"),prefix=aPrefix)
+    SStatisticsAbSample(paste(aPrefix,"allStats_sample",sep="_"),prefix=aPrefix)
+    RStatisticsAbSample(paste(aPrefix,"allStats_sample",sep="_"),prefix=aPrefix)
+  }
+
 }
 
 
@@ -877,4 +906,87 @@ SStatisticsAbSample <- function(name = "allStats_sample",prefix=NA,folder = getS
   writeStatisticsFrame(fractions,namebase,folder)  
 }
 
+# Moved metric calc to manuscript.
+#
+# calcPRMicro <- function(
+#     df = readStatisticsFrame("allStats_sum", getStatisticsFolder(MODE))
+# ) {
+#   library(dplyr)
+#   library(tidyr)
+#   
+#   safe_div <- function(num, den) ifelse(den == 0, NA_real_, num / den)
+#   
+#   # Detect count column
+#   cnt_col <- intersect(names(df), c("value", "count", "n"))[1]
+#   if (is.na(cnt_col)) stop("No count column found (expected one of: value, count, n).")
+#   
+#   has_abx <- "antibiotic" %in% names(df)
+#   
+#   # Build grouping variables dynamically
+#   group_vars <- c(if (has_abx) "antibiotic", "significanceLevel", "noinputab", "metric")
+#   
+#   # Keep only relevant metrics and aggregate
+#   core <- df %>%
+#     dplyr::filter(metric %in% c("correctR", "correctS", "falseR", "falseS")) %>%
+#     dplyr::group_by(dplyr::across(all_of(group_vars))) %>%
+#     dplyr::summarise(n = sum(.data[[cnt_col]], na.rm = TRUE), .groups = "drop")
+#   
+#   # Pivot to wide
+#   wide <- tidyr::pivot_wider(core,
+#                              names_from = metric,
+#                              values_from = n,
+#                              values_fill = 0)
+#   
+#   # Ensure columns exist
+#   for (nm in c("correctR","correctS","falseR","falseS")) {
+#     if (!nm %in% names(wide)) wide[[nm]] <- 0
+#   }
+#   
+#   # Compute precision, recall, micro-F1
+#   if (has_abx) {
+#     out <- wide %>%
+#       dplyr::transmute(
+#         antibiotic,
+#         significanceLevel,
+#         noinputab,
+#         TP = correctR,
+#         TN = correctS,
+#         FP = falseR,
+#         FN = falseS,
+#         precision = safe_div(TP, TP + FP),
+#         recall    = safe_div(TP, TP + FN),
+#         f1_micro  = safe_div(2 * precision * recall, precision + recall)
+#       ) %>%
+#       dplyr::arrange(noinputab, antibiotic, significanceLevel)
+#   } else {
+#     out <- wide %>%
+#       dplyr::transmute(
+#         significanceLevel,
+#         noinputab,
+#         TP = correctR,
+#         TN = correctS,
+#         FP = falseR,
+#         FN = falseS,
+#         precision = safe_div(TP, TP + FP),
+#         recall    = safe_div(TP, TP + FN),
+#         f1_micro  = safe_div(2 * precision * recall, precision + recall)
+#       ) %>%
+#       dplyr::arrange(noinputab, significanceLevel)
+#   }
+#   
+#   out
+# }
+
+
+
+
+# F1_Score <- function()
+# {
+#   metrics <- calcF1Metrics()
+#   NA_n6 <- metrics %>% filter(is.na(significanceLevel))  %>% filter(noinputab == 6) %>% select(antibiotic,f1=f1_micro)
+#   NA_inputscore <- metrics %>% filter(is.na(significanceLevel)) %>% select(antibiotic,noinputab,f1=f1_micro)
+#   
+#   anothermetrics <- calcPRMicro()
+#   writeStatisticsFrame(frame=NA_inputscore,name = "f1_noinputab",getStatisticsFolder(MODE))
+# }
 

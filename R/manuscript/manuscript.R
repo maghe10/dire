@@ -9,3 +9,7 @@ ALL()
 source(file = 'clear.R')
 source(file = 'manuscript/selectPictures.R')
 ALL()
+
+source(file = 'clear.R')
+source(file = 'manuscript/plotStatisticsTables.R')
+ALL()

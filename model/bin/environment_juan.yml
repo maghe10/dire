@@ -1,0 +1,38 @@
+name: juan
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+
+dependencies:
+  # --- Core Python environment ---
+  - python=3.9.5
+  - pip
+  - ipython=7.25.0
+  - pyyaml=5.4.1
+
+  # --- Core scientific stack ---
+  - numpy
+  - pandas
+  - matplotlib
+  - scikit-learn
+  - tqdm
+  - seaborn
+
+  # --- PyTorch ecosystem (CPU build) ---
+  - pytorch=1.11.0
+  - torchvision
+  - torchtext
+  - torchaudio
+  - cpuonly            # ensures CPU builds from pytorch channel
+
+  # --- Notebook / visualization tools ---
+  - jupyterlab
+  - ipywidgets
+
+  # --- Useful extras ---
+  - requests
+
+  # --- Python-only (pip) extras ---
+  - pip:
+      - d2l==0.17.6     # Dive Into Deep Learning (for your vocab .pth)

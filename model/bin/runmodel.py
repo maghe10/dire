@@ -3,8 +3,8 @@ import sys
 import subprocess # just to call an arbitrary command e.g. 'ls'
 
 
-BIN_PATH = "/root/dire/data//model/bin"
-DIRE_PATH = "/root/dire/data//model/dire"
+BIN_PATH = "/root/dire/program//model/bin"
+DIRE_PATH = "/root/dire/program//model/dire"
 PROCESSED_PATH = "/root/dire/data//Analyser/processed/R/model"
 
 class cd:

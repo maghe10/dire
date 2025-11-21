@@ -13,41 +13,6 @@ AMINOGLYCOSIDES <- c("GEN" ,"TOB")
 AB_GROUPS <- list(PENICILLINS,CEPHALOSPORINS,FLOUROQUINOLONS,AMINOGLYCOSIDES)
 
 
-
-
-writeLargeTmpFrame <- function(frame,outFileName)
-{
-  outFileNameFullGz <-paste(getStatisticsTmpFolder(MODE),"/",outFileName,".gz",sep="")
-  data.table::fwrite(frame,outFileNameFullGz,compress="gzip")
-  
-   #outFileNameFst <-paste(getStatisticsTmpFolder(MODE),"/",outFileName,".fst",sep="")
-   #fst::write_fst(frame, outFileNameFst, compress = 100)
-  
-  # outFileNameArrow <-paste(getStatisticsTmpFolder(MODE),"/",outFileName,".parquet",sep="")
-  # arrow::write_parquet(frame, outFileNameArrow)
-}
-
-writeLargeCompareFrame <- function(frame,outFileName)
-{
-  outFileNameFullGz <-paste(getCompareFolder(MODE),"/",outFileName,".gz",sep="")
-  data.table::fwrite(frame,outFileNameFullGz)
-}
-
-
-readLargeTmpFrame <- function(inFileName)
-{
-  inFileNameFullGz <-paste(getStatisticsTmpFolder(MODE),"/",inFileName,".gz",sep="")
-  data.table::fread(inFileNameFullGz)
-}
-
-readLargeCompareFrame <- function(inFileName)
-{
-  inFileNameFullGz <-paste(getCompareFolder(MODE),"/",inFileName,".gz",sep="")
-  data.table::fread(inFileNameFullGz)
-}
-
-
-
 allWordsWithAtLeastOneForEachGroup <- function()
 {
   unlist(lapply(4:13,atLeastoneForEachGroup))
@@ -134,53 +99,96 @@ significanceLevelForStatisticsTable <- function()
   c(NA,unlist(lapply(signis,fixSigni)))
 }
 
-reorganizePredictions <- function(index)
-{
-  #index <- 1
-  #
-  #index <- 4
-  #index <- 13
 
-  #allAbs <- c("AMP","AMC","PIP","TZP","CAZ","CRO","CTX","FEP","CIP","OFX","LVX","MFX","GEN","TOB")
-  #correctFrame <- readOutputFrameShort(shortfile="modelOutput_answer_13.csv",folder=getPredictionFolder(MODE))
-  #colnames(correctFrame) <- rev(allAbs)
-  
-  predsFiles <- predsfilesForIndex(index)
-  answerFile <- makeShortFileName("answer",index)
 
-  predictionFrames <- lapply(predsFiles,function(x){ 
-    aFrame <- readOutputFrameShort(shortfile=x,folder=getPredictionFolder(MODE))
-    aFrame
-  })
-  names(predictionFrames) <- predsFiles
-  
-  answerFrame <- readOutputFrameShort(shortfile=answerFile,folder=getPredictionFolder(MODE))
 
-  reorganizeFrame <- function(frame,tag)
-  {
-    words <- colnames(frame)
-    frame[frame=="<empty>"] <-NA
-    frameLong <- cbind(frame,sample=rownames(frame)) %>% 
-      tidyr::pivot_longer(cols = all_of(words), names_to = "word", values_to = tag, values_drop_na = TRUE) %>% 
-      tidyr::separate_longer_delim(cols = all_of(tag),delim = " ") %>% 
-      tidyr::separate_wider_delim(cols = all_of(tag),delim = "_",names = c("antibiotic",paste(tag,"sr",sep = "_")))
-    
-    frameLong
-  }
+reorganizePredictions <- function(index) {
+  predsFiles  <- predsfilesForIndex(index)
+  if (length(predsFiles) == 0) stop("No prediction files found for index = ", index)
   
-  answerFrameLong <-  reorganizeFrame(answerFrame,"answer")
-  for(aFileName in names(predictionFrames)){
-    #aFileName <- names(predictionFrames)[[4]]
-    predictionFrame <- predictionFrames[[aFileName]]
-    predictionFrameLong <- reorganizeFrame(predictionFrame,"prediction")
-    combinedFrameLong <- dplyr::right_join(predictionFrameLong, answerFrameLong, by = c("sample", "word", "antibiotic"))
+  answerFile <- makeShortFileName("answer", index)
+  read_short <- function(shortfile) readOutputFrameShort(shortfile = shortfile, folder = getPredictionFolder(MODE))
+  
+  answerFrame      <- read_short(answerFile)
+  answerFrameLong  <- reorganizeFrame(answerFrame,     "answer",     expand_empties = TRUE)
+  
+  predictionFrames <- lapply(predsFiles, read_short)
+  
+  join_keys <- c("sample","word","antibiotic")
+  na_fill   <- list(prediction_sr = "", answer_sr = "")
+  
+  for (k in seq_along(predictionFrames)) {
+    aFileName       <- predsFiles[[k]]
+    predictionFrame <- predictionFrames[[k]]
+    stopifnot(is.data.frame(predictionFrame))
     
+    # Do NOT expand empties on predictions
+    predictionFrameLong <- reorganizeFrame(predictionFrame, "prediction", expand_empties = FALSE)
     
-    outFileName <- predsTocompareFile(aFileName)
-    writeLargeCompareFrame(combinedFrameLong,outFileName)
-    #writeStatisticsFrame(combinedFrameLong,name = outFileName,folder = getCompareFolder(MODE))
+    # Keep only rows that exist in answers (prevents explosion)
+    combinedFrameLong <- dplyr::right_join(
+      predictionFrameLong, answerFrameLong, by = join_keys
+    ) %>%
+      tidyr::replace_na(na_fill)
+    
+    outFileName       <- predsTocompareFile(aFileName)
+    outFileNameFullGz <- file.path(getCompareFolder(MODE), paste0(outFileName, ".gz"))
+    data.table::fwrite(combinedFrameLong, outFileNameFullGz)
   }
 }
+reorganizeFrame <- function(frame, tag, expand_empties = TRUE) {
+  frame[is.na(frame)] <- ""
+  frame[frame == "<empty>"] <- ""
+  
+  if (!"sample" %in% colnames(frame)) {
+    rn <- rownames(frame)
+    frame$sample <- if (is.null(rn) || anyNA(rn) || any(rn == "")) as.character(seq_len(nrow(frame))) else rn
+  }
+  
+  long <- frame %>%
+    tidyr::pivot_longer(
+      cols = -sample,                    # small simplification
+      names_to = "word",
+      values_to = tag,
+      values_drop_na = FALSE
+    )
+  
+  # Non-empty tokens → split to rows
+  non_empty <- long %>% dplyr::filter(.data[[tag]] != "")
+  if (nrow(non_empty)) {
+    if ("separate_longer_delim" %in% getNamespaceExports("tidyr")) {
+      non_empty <- tidyr::separate_longer_delim(non_empty, cols = dplyr::all_of(tag), delim = " ")
+    } else {
+      non_empty <- tidyr::separate_rows(non_empty, dplyr::all_of(tag), sep = " +")
+    }
+    non_empty <- tidyr::separate_wider_delim(
+      non_empty, cols = dplyr::all_of(tag), delim = "_",
+      names = c("antibiotic", paste0(tag, "_sr")),
+      too_few = "align_start"
+    ) %>%
+      dplyr::select(sample, word, antibiotic, dplyr::all_of(paste0(tag, "_sr")))
+  } else {
+    non_empty <- tibble::tibble(sample = character(), word = character(),
+                                antibiotic = character(), !!paste0(tag, "_sr") := character())
+  }
+  
+  # Empties → expand only if requested
+  if (expand_empties) {
+    empty_expanded <- long %>%
+      dplyr::filter(.data[[tag]] == "") %>%
+      dplyr::mutate(antibiotic = stringr::str_split(word, "_", simplify = FALSE)) %>%
+      tidyr::unnest(antibiotic) %>%
+      dplyr::mutate(!!paste0(tag, "_sr") := "") %>%
+      dplyr::select(sample, word, antibiotic, dplyr::all_of(paste0(tag, "_sr")))
+  } else {
+    empty_expanded <- tibble::tibble(sample = character(), word = character(),
+                                     antibiotic = character(), !!paste0(tag, "_sr") := character())
+  }
+  
+  dplyr::bind_rows(non_empty, empty_expanded)
+}
+
+
 
 
 # COLAPSE_ON_SAMPLE <- function()
@@ -323,7 +331,7 @@ GENERATE_STATISTICS_METRICS <- function()
 
   for(index in RANGE){
     #MODE <- "Mode-A"
-    #index <- 12
+    #index <- 2
     compareFiles <- comparefilesForIndex(index)
     names(compareFiles) <- c("crude",signis)
     compareFrames <- lapply(names(compareFiles),function(x){ 
@@ -338,7 +346,8 @@ GENERATE_STATISTICS_METRICS <- function()
       # print(tail(aFrame))
       statisticsFrame <- comparesToStatisticsFrame(aFrame,index,significanceLevel)
       outFileName <- compareToStatisticsFile(compareFile)
-      writeLargeTmpFrame(statisticsFrame,outFileName)
+      outFileNameFullGz <-paste(getStatisticsTmpFolder(MODE),"/",outFileName,".gz",sep="")
+      data.table::fwrite(statisticsFrame,outFileNameFullGz)
     })
   }
 }
@@ -355,7 +364,7 @@ GENERATE_STATISTICS_SUB_METRICS <- function()
     lapply(names(statisticsfiles),function(x){ 
       #x<-"01"
       file <- statisticsfiles[[x]]
-      aFrame <- readLargeTmpFrame(file) 
+      aFrame <- data.table::fread(paste(getStatisticsTmpFolder(MODE),"/",file,".gz",sep=""))
       significanceLevel <- NA
       if(x!="crude"){
         significanceLevel <- fixSigni(x)
@@ -394,15 +403,15 @@ GENERATE_STATISTICS_SUB_METRICS <- function()
       outFileNameFullGz <-paste(getStatisticsTmpFolder(MODE),"/",outFileName,".gz",sep="")
       data.table::fwrite(x=sum,outFileNameFullGz)
       if(index>=4){
-        outFileName <- paste(ONEPERABGROUP,statisticsToWordFile(file),sep="_")
+        outFileName <- paste("oneperabgroup",statisticsToWordFile(file),sep="_")
         outFileNameFullGz <-paste(getStatisticsTmpFolder(MODE),"/",outFileName,".gz",sep="")
         data.table::fwrite(x=word_oneperabgroup,outFileNameFullGz)
         
-        outFileName <- paste(ONEPERABGROUP,statisticsToSampleFile(file),sep="_")
+        outFileName <- paste("oneperabgroup",statisticsToSampleFile(file),sep="_")
         outFileNameFullGz <-paste(getStatisticsTmpFolder(MODE),"/",outFileName,".gz",sep="")
         data.table::fwrite(x=sample_oneperabgroup,outFileNameFullGz)
         
-        outFileName <- paste(ONEPERABGROUP,statisticsToSumFile(file),sep="_")
+        outFileName <- paste("oneperabgroup",statisticsToSumFile(file),sep="_")
         outFileNameFullGz <-paste(getStatisticsTmpFolder(MODE),"/",outFileName,".gz",sep="")
         data.table::fwrite(x=sum_oneperabgroup,outFileNameFullGz)
       }
@@ -432,55 +441,6 @@ comparesToStatisticsFrame <- function(compareFrame,index,significanceLevel)
     dplyr::select(noinputab,metric,count,antibiotic,significanceLevel,word,sample)
 }
 
-comparesToStatisticsFrameFast <- function(compareFrame, index, significanceLevel) {
-  wideMetricsFrame <- compareFrame %>%
-    dplyr::mutate(
-      # base indicators
-      S           = answer_sr == "S",
-      R           = answer_sr == "R",
-      correct     = prediction_sr == answer_sr,
-      ambiguous   = prediction_sr == "SR",
-      notpredicted = prediction_sr == "",
-      
-      # derived error types
-      false       = !correct & !ambiguous & !notpredicted,
-      correctS    = S & correct,
-      correctR    = R & correct,
-      falseR      = S & false,
-      falseS      = R & false,
-      notpredictedS = S & notpredicted,
-      notpredictedR = R & notpredicted,
-      ambiguousS  = S & ambiguous,
-      ambiguousR  = R & ambiguous,
-      
-      # totals / convenience flags
-      total          = S | R,
-      predicted      = correct | false,
-      predorambiguous = correct | false | ambiguous
-    ) %>%
-    dplyr::select(-prediction_sr, -answer_sr)
-  
-  # ensure every row has an S or R
-  stopifnot(all(wideMetricsFrame$total))
-  
-  wideMetricsFrame %>%
-    tidyr::pivot_longer(
-      cols      = where(is.logical),     # all logical metrics
-      names_to  = "metric",
-      values_to = "count"
-    ) %>%
-    dplyr::mutate(
-      count            = as.integer(count),
-      noinputab        = index,
-      significanceLevel = significanceLevel
-    ) %>%
-    dplyr::select(
-      noinputab, metric, count,
-      antibiotic, significanceLevel, word, sample
-    )
-}
-
-
 
 GENERATE_REORGANIZED_PREDICTIONS <- function()
 {
@@ -508,66 +468,12 @@ MOST <- function()
   MERGE_SAMPLE()
   #SANITY_CHECK_SUM()
   #SANITY_CHECK_WORD()
-  MERGE_SUM(prefix = ONEPERABGROUP,range = 4:max(RANGE))
-  MERGE_WORD(prefix = ONEPERABGROUP,range = 4:max(RANGE))
-  MERGE_SAMPLE(prefix = ONEPERABGROUP,range = 4:max(RANGE))
-  GENERATE_SELECTION()
+  MERGE_SUM(prefix = "oneperabgroup",range = 4:max(RANGE))
+  MERGE_WORD(prefix = "oneperabgroup",range = 4:max(RANGE))
+  MERGE_SAMPLE(prefix = "oneperabgroup",range = 4:max(RANGE))
 }
 
-GENERATE_SELECTION <- function()
-{
-  selection <- BEST_SELECTION
-  
-  for(nameSelected in names(selection)){
-    print(nameSelected)
-    print(selection[nameSelected])
-    selected <- selection[nameSelected]
-  
-    index <- length(unlist(strsplit(selected,split="_")))
-    statisticsfiles <- statisticsfilesForIndex(index)
-    names(statisticsfiles) <- c("crude",signis)
-    lapply(names(statisticsfiles),function(x){ 
-      #x<-"crude"
-      file <- statisticsfiles[[x]]
-      aFrame <- readLargeTmpFrame(file) 
-      significanceLevel <- NA
-      if(x!="crude"){
-        significanceLevel <- fixSigni(x)
-      }
-      #Fix correct order
-      aFrame <- aFrame %>% dplyr::select(noinputab,metric,count,antibiotic,significanceLevel,word,sample)
-      word <- collapseOnSample(aFrame)
-      # print(nrow(word))
-      sample <- collapseOnWord(aFrame)
-      # print(nrow(sample))
-      sum <- collapseOnWord(word)
-      # print(nrow(sum))
-      aFrame_selected <- aFrame %>% dplyr::filter(word %in% selected)
-        
-      word_selected <-  collapseOnSample(aFrame_selected)
-      sample_selected <-  collapseOnWord(aFrame_selected)
-      sum_selected <-  collapseOnWord(word_selected)
 
-        outFileName <- paste(nameSelected,statisticsToWordFile(file),sep="_")
-        outFileNameFullGz <-paste(getStatisticsTmpFolder(MODE),"/",outFileName,".gz",sep="")
-        data.table::fwrite(x=word_selected,outFileNameFullGz)
-        
-        outFileName <- paste(nameSelected,statisticsToSampleFile(file),sep="_")
-        outFileNameFullGz <-paste(getStatisticsTmpFolder(MODE),"/",outFileName,".gz",sep="")
-        data.table::fwrite(x=sample_selected,outFileNameFullGz)
-        
-        outFileName <- paste(nameSelected,statisticsToSumFile(file),sep="_")
-        outFileNameFullGz <-paste(getStatisticsTmpFolder(MODE),"/",outFileName,".gz",sep="")
-        data.table::fwrite(x=sum_selected,outFileNameFullGz)
-      
-      
-    })
-    MERGE_SUM(prefix = nameSelected,range = index:index)
-    MERGE_WORD(prefix = nameSelected,range = index:index)
-    MERGE_SAMPLE(prefix = nameSelected,range = index:index)
-  }
-  
-}
 
 
 
@@ -683,26 +589,5 @@ checkDirs <-function()
   
 }
 
-# onepassPipeline <- function(compareFrame,index,significanceLevel)
-# {
-#  statisticsFrame <- compareFrame %>% comparesToStatisticsFrame(compareFrame,index,significanceLeve)
-#  #Fix correct order
-#  statisticsFrame <- statisticsFrame %>% dplyr::select(noinputab,metric,count,antibiotic,significanceLevel,word,sample)
-#  
-#  word <- collapseOnSample(aFrame)
-#  # print(nrow(word))
-#  sample <- collapseOnWord(aFrame)
-#  # print(nrow(sample))
-#  sum <- collapseOnWord(word)
-#  # print(nrow(sum))
-#  if(index>=4){
-#    words <- atLeastOneForEachGroup(index)
-#    aFrame_oneperabgroup <- aFrame %>% dplyr::filter(word %in% words)
-#    
-#    word_oneperabgroup <-  collapseOnSample(aFrame_oneperabgroup)
-#    sample_oneperabgroup <-  collapseOnWord(aFrame_oneperabgroup)
-#    sum_oneperabgroup <-  collapseOnWord(word_oneperabgroup)
-#  }
-#  
-# }
+
 

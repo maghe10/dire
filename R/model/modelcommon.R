@@ -1,7 +1,11 @@
 source(file = 'common.R')
 library(stringr)
 
-modelVersion <- "250410"
+
+signis = c("0025", "005", "01")
+
+# Uncomment to skip conformal predictions
+#signis <- c()
 
 METRICS_COLS <- c("correct","ME","VME")
 
@@ -16,6 +20,12 @@ BEST_ALT <- list(
   c("AMP", "PIP" ,"CRO","CTX","FEP", "CIP", "MFX" ,"TOB"))
 
 SELECTED <- append(BEST_ABS,BEST_ALT)
+
+BEST_SELECTION <- c(fourbest = "TZP_CAZ_LVX_TOB",fivebest = "AMC_TZP_CAZ_LVX_TOB",sixbest = "AMC_TZP_CAZ_LVX_MFX_TOB")
+ONEPERABGROUP <- "oneperabgroup"
+SUBGROUPS <- c(names(BEST_SELECTION),ONEPERABGROUP)
+
+
 
 
 COMPARE_CORRECT <- "correct"
@@ -44,7 +54,9 @@ if(!minusAMC) {
 	  ANTIBIOTICS = c("AMP",	"PIP"	,"TZP",	"CAZ",	"CRO",	"CTX"	,"FEP"	,"CIP"	,"OFX"	,"LVX"	,"MFX"	,"GEN"	,"TOB")
 	  PASCAL = c(13,78,286,715,1287,1716,1716,1287,715,286,78,13)
 }
-	
+
+range <- 4:(NUMBER_OF_ANTIBIOTICS - 1)
+
 
 getPredictionBase <- function(mode){
 	if(!minusAMC)
@@ -136,9 +148,6 @@ getStatisticsAntibioticsMetricsFolder <- function(mode)
 
 TEMP_FOLDER <- paste(modelDirectory, "temp", sep = "\\")
 
-signis = c("0025", "005", "01")
-#signis = c("001", "0025", "005", "01")
-range <- 1:(NUMBER_OF_ANTIBIOTICS - 1)
 
 
 

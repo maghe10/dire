@@ -1,0 +1,1 @@
+python ./runmodel_juan.py --number_of_choices 12 --significant_level 0.10 --output_folder . --load_sir_csvfile "sirAntibioticsModelWords_Mode-A.csv"

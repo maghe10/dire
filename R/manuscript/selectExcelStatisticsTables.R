@@ -2,7 +2,7 @@ source(file = 'manuscript/manuscriptcommon.R')
 source(file = 'model/modelcommon.R')
 
 # FIXME remove
-#MODES <- list(MODE_A,MODE_C)
+#MODES <- list(MODE_A,MODE_B,MODE_C)
 #MODES <- list(MODE_A)
 
 SELECTED_SIGNIS <- c(NA,0.1,0.05,0.025)
@@ -42,8 +42,10 @@ mergeRiskStratifiedStatistics <-function(prefix=NA,subfolder = "")
 mergeModesErrorStatistics <- function(prefix=NA,subfolder = "")
 {
   #prefix <- "AMP_CRO_CIP_TOB"
-  names <- c("abErrorStatistics",
-             "errorStatistics")
+  names <- c("abErrorStatisticsFrac",
+             "errorStatisticsFrac","abSampleErrorStatisticsFrac",
+             "errorStatisticsCount","abErrorStatisticsCount",
+             "abSampleErrorStatisticsCount")
   
   for(name in names){
     orgName <- name
@@ -97,27 +99,49 @@ filterIndexRange <- function(frame,indexRange){
   subFrame
 }
 
-filterMetricRange <- function(frame,metricRange){
-  #frame <- readStatisticsExcel(name)
-  longSubframe <- frame %>% tidyr::pivot_longer(cols = all_of(METRICS_COLS), names_to = "metric")
-  #metricRange <- c("ME","VME") 
-  #metricRange <- "correct"
-  #metricRange <- "ME"
-  
-  longSubframe <- longSubframe %>% dplyr::filter(metric %in% metricRange)
-  longSubframe %>% tidyr::pivot_wider(names_from = metric ,values_from = value)
+
+
+
+filterMetricRangeNorm <- function(frame, metricRange) {
+  filterMetricRange(frame, metricRange)
 }
 
-filterMetricRangeNorm <- function(frame,metricRange){
-  #frame <- readStatisticsExcel(name)
-  longSubframe <- frame %>% tidyr::pivot_longer(cols = all_of(c("ME","VME")), names_to = "metric")
-  #metricRange <- c("ME","VME") 
-  #metricRange <- "correct"
-  #metricRange <- "ME"
+filterMetricRange <- function(frame, metricRange) {
+  library(dplyr)
   
-  longSubframe <- longSubframe %>% dplyr::filter(metric %in% metricRange)
-  longSubframe %>% tidyr::pivot_wider(names_from = metric ,values_from = value)
-}
+  # Normalize metricRange to a character vector
+  if (is.null(metricRange)) {
+    stop("metricRange must be provided (scalar or list/vector).")
+  }
+  if (is.list(metricRange)) {
+    metricRange <- unlist(metricRange, recursive = TRUE, use.names = FALSE)
+  }
+  metricRange <- as.character(metricRange)
+  metricRange <- unique(metricRange)
+  
+  if (length(metricRange) == 0) {
+    stop("metricRange is empty after normalization.")
+  }
+  
+  # Optional identifier columns (keep if present)
+  first_list <- c("noinputab", "significanceLevel", "antibiotic","ab_group", "mode")
+  id_cols <- intersect(first_list, names(frame))
+  
+  # All metric columns must be present
+  missing_metrics <- setdiff(metricRange, names(frame))
+  if (length(missing_metrics) > 0) {
+    stop(
+      paste("Missing required metric columns:",
+            paste(missing_metrics, collapse = ", "))
+    )
+  }
+  # Return same rows, keeping (optional) IDs + required metrics
+  frame %>%
+    dplyr::select(all_of(c(id_cols, metricRange)))
+}  
+
+
+
 
 
 
@@ -134,7 +158,7 @@ filterMode <- function(frame,modeRange){
 
 antibioticsVsMode <- function(index  = 6)
 {
-  frame <- readStatisticsExcel("abErrorStatistics")
+  frame <- readStatisticsExcel("abErrorStatisticsFrac")
   subframe <- frame
   subframe <- subframe %>% filterIndexRange(index) %>% filterSignificanceRange(NA)
   correct <- subframe %>% filterMetricRange("correct") %>% tidyr::pivot_wider(names_from = mode,values_from = correct)
@@ -147,7 +171,7 @@ antibioticsVsMode <- function(index  = 6)
 
 antibioticsVsMetric <- function(mode  = "Mode-A")
 {
-  frame <- readStatisticsExcel("abErrorStatistics") 
+  frame <- readStatisticsExcel("abErrorStatisticsFrac") 
   subFrame <- frame
   subFrame <- subFrame %>% filterMode(mode) %>% filterSignificanceRange(NA) %>% reorderMetrics()
   
@@ -160,7 +184,7 @@ antibioticsVsMetric <- function(mode  = "Mode-A")
 
 correctAntibioticsVsIndex <- function(mode  = "Mode-A")
 {
-  frame <- readStatisticsExcel("abErrorStatistics") 
+  frame <- readStatisticsExcel("abErrorStatisticsFrac") 
   subFrame <- frame
   indexRange <- c(4:8)
   subFrame <- subFrame %>% filterMode(mode) %>% filterSignificanceRange(NA) %>% filterIndexRange(indexRange) %>% filterMetricRange("correct")
@@ -174,44 +198,6 @@ reorderMetrics <-function(frame)
   longSubframe <- frame %>% tidyr::pivot_longer(cols = METRICS_COLS, names_to = "metric")
   longSubframe %>% tidyr::pivot_wider(names_from = metric ,values_from = value)
 }
-
-#@deprecated
-metricsVsIndex <- function(mode  = "Mode-A")
-{
-  frame <- readStatisticsExcel("errorStatistics")
-  subFrame <- frame
-  subFrame <- subFrame %>% filterMode(mode) %>% filterSignificanceRange(NA) %>% filterIndexRange(c(4:8))
-  longSubframe <- subFrame %>% tidyr::pivot_longer(cols = METRICS_COLS, names_to = "metric")
-  subFrame <- longSubframe %>% tidyr::pivot_wider(names_from = noinputab ,values_from = value)
-
-  
-  writeStatisticsExcel(subFrame,paste("metricsVsIndex",mode,sep="-"),paste("abVsMetric",substring(mode,nchar(mode),nchar(mode)),sep="-"))
-}
-
-# #@deprecated
-# metricsVsModeForSixAb <- function(significanceLevel = NA)
-# {
-#   frame <- readStatisticsExcel("errorStatistics")
-#   subFrame <- frame
-#   subFrame <- subFrame %>% filterSignificanceRange(significanceLevel) %>% filterIndexRange(6)
-#   longSubframe <- subFrame %>% tidyr::pivot_longer(cols = METRICS_COLS, names_to = "metric")
-#   subFrame <- longSubframe %>% tidyr::pivot_wider(names_from = mode ,values_from = value)
-# 
-#   writeStatisticsExcel(subFrame,paste("metricsVsMode",6,significanceLevel,sep="-"),paste("metricsVsMode",6,significanceLevel,sep="-"))
-# }
-
-# #@deprecated
-# metricsVsModeForSignificaneLevelNA <- function(index = 6)
-# {
-#   frame <- readStatisticsExcel("errorStatistics")
-#   subFrame <- frame
-#   subFrame <- subFrame %>% filterSignificanceRange(NA) %>% filterIndexRange(index)
-#   longSubframe <- subFrame %>% tidyr::pivot_longer(cols = METRICS_COLS, names_to = "metric")
-#   subFrame <- longSubframe %>% tidyr::pivot_wider(names_from = mode ,values_from = value)
-#   
-#   
-#   writeStatisticsExcel(subFrame,paste("metricsVsMode",index,sep="-"),paste("metricsVsMode",index,sep="-"))
-# }
 
 
 
@@ -228,7 +214,7 @@ signiToPercent <- function(signi)
 
 correctSignificanceLevelVsIndex <- function(mode  = MODE_A)
 {
-  frame <- readStatisticsExcel("errorStatistics")
+  frame <- readStatisticsExcel("errorStatisticsFrac")
   subFrame <- frame
   subFrame <- subFrame %>% 
     filterMode(mode) %>% 
@@ -246,7 +232,7 @@ correctSignificanceLevelVsIndex <- function(mode  = MODE_A)
 
 correctModeVsSignificanceLevel <- function(index  = 6)
 {
-  frame <- readStatisticsExcel("errorStatistics")
+  frame <- readStatisticsExcel("errorStatisticsFrac")
   subFrame <- frame
   subFrame <- subFrame %>% 
     filterIndexRange(index) %>% 
@@ -261,64 +247,6 @@ correctModeVsSignificanceLevel <- function(index  = 6)
   writeStatisticsExcel(subFrame,paste("correctModeVsSignificanceLevel",index,sep="-"),paste("correctModeVsSigni",index,sep="-"))
 }
 
-#@deprecated
-meNormalizedAntibioticsVsSignificanceLevel <- function(index  = 6,prefix=NA,subfolder = "")
-{
-  name <-  "abErrorStatisticsNormalized"
-  if(!is.na(prefix)){
-    name <- paste(prefix,name,sep="-")
-  }
-  frame <- readStatisticsExcel(name,subfolder=subfolder)
-  subFrame <- frame
-  subFrame <- subFrame %>% 
-    filterMode(MODE_A) %>% 
-    filterIndexRange(index) %>% 
-    filterMetricRangeNorm("ME") %>% 
-    filterSignificanceRange(SELECTED_SIGNIS)
-  subFrame$significanceLevel <- unlist(lapply(subFrame$significanceLevel,function(x) {signiToPercent(x)}))
-  
-  subFrame <- subFrame %>% tidyr::pivot_wider(names_from = significanceLevel ,values_from = ME)
-  subFrame <- subFrame %>% dplyr::select(antibiotic,`non-conformal` ,`10%`,`5%`,`2.5%`)  
-  
-  #writeStatisticsExcel(subFrame,paste("nonATUstats-meNormalizedAntibioticsVsSignificanceLevel",index,sep="-"),paste("meNormAntibioticsVsSigni",index,sep="-"))
-  outname <- "meNormalizedAntibioticsVsSignificanceLevel"
-  if(!is.na(prefix)){
-    outname <- paste(prefix,outname,index,sep="-")
-  } else {
-    outname <- paste(outname,index,sep="-")
-  }
-  
-  writeStatisticsExcel(subFrame,outname,paste("meNormAntibioticsVsSigni",index,sep="-"),subfolder=subfolder)
-}
-
-#@deprecated
-vmeNormalizedAntibioticsVsSignificanceLevel <- function(index  = 6,prefix=NA,subfolder = "")
-{
-  name <-  "abErrorStatisticsNormalized"
-  if(!is.na(prefix)){
-    name <- paste(prefix,name,sep="-")
-  }
-  frame <- readStatisticsExcel(name,subfolder = subfolder)
-  subFrame <- frame
-  subFrame <- subFrame %>% 
-    filterMode(MODE_A) %>% 
-    filterIndexRange(index) %>% 
-    filterMetricRangeNorm("VME") %>% 
-    filterSignificanceRange(SELECTED_SIGNIS)
-  subFrame$significanceLevel <- unlist(lapply(subFrame$significanceLevel,function(x) {signiToPercent(x)}))
-  
-  subFrame <- subFrame %>% tidyr::pivot_wider(names_from = significanceLevel ,values_from = VME)
-  subFrame <- subFrame %>% dplyr::select(antibiotic,`non-conformal` ,`10%`,`5%`,`2.5%`)  
-  
-  outname <- "vmeNormalizedAntibioticsVsSignificanceLevel"
-  if(!is.na(prefix)){
-    outname <- paste(prefix,outname,index,sep="-")
-  } else {
-    outname <- paste(outname,index,sep="-")
-  }
-  
-  writeStatisticsExcel(subFrame,outname,paste("vmeNormAntibioticsVsSigni",index,sep="-"),subfolder = subfolder)
-}
 
 
 meMetricVsAntibiotic <- function(index = 6,significanceLevel = NA)
@@ -357,71 +285,9 @@ vmeRateMetricVsAntibiotic <- function(index = 6,significanceLevel = NA)
 }
 
 
-
-#@deprecated
-meNormalizedModeVsSignificanceLevel <- function(index  = 6,prefix=NA,subfolder = "")
-{
-  name <-  "errorStatisticsNormalized"
-  if(!is.na(prefix)){
-    name <- paste(prefix,name,sep="-")
-  }
-  frame <- readStatisticsExcel(name,subfolder = subfolder)
-  subFrame <- frame
-  subFrame <- subFrame %>% 
-    filterIndexRange(index) %>% 
-    filterMetricRangeNorm("ME") %>% 
-    filterSignificanceRange(SELECTED_SIGNIS)
-  subFrame$significanceLevel <- unlist(lapply(subFrame$significanceLevel,function(x) {signiToPercent(x)}))
-  
-  subFrame <- subFrame %>% tidyr::pivot_wider(names_from = significanceLevel ,values_from = ME)
-  
-  subFrame <- subFrame %>% dplyr::select(mode ,`10%`,`5%`,`2.5%`)  
-  
-  outname <- "meNormalizedModeVsSignificanceLevel"
-  if(!is.na(prefix)){
-    outname <- paste(prefix,outname,index,sep="-")
-  } else {
-    outname <- paste(outname,index,sep="-")
-  }
-  writeStatisticsExcel(subFrame,outname,paste("meNormalizedModeVsSigni",index,sep="-"),subfolder = subfolder)
-}
-
-
-
-#@deprecated
-vmeNormalizedModeVsSignificanceLevel <- function(index  = 6,prefix=NA,subfolder="")
-{
-  name <-  "errorStatisticsNormalized"
-  if(!is.na(prefix)){
-    name <- paste(prefix,name,sep="-")
-  }
-  frame <- readStatisticsExcel(name,subfolder=subfolder)
-  subFrame <- frame
-  subFrame <- subFrame %>% 
-    filterIndexRange(index) %>% 
-    filterMetricRangeNorm("VME") %>% 
-    filterSignificanceRange(SELECTED_SIGNIS)
-  subFrame$significanceLevel <- unlist(lapply(subFrame$significanceLevel,function(x) {signiToPercent(x)}))
-  
-  subFrame <- subFrame %>% tidyr::pivot_wider(names_from = significanceLevel ,values_from = VME)
-  
-  subFrame <- subFrame %>% dplyr::select(mode ,`10%`,`5%`,`2.5%`)  
-  
-  outname <- "vmeNormalizedModeVsSignificanceLevel"
-  if(!is.na(prefix)){
-    outname <- paste(prefix,outname,sep="-")
-  } else {
-    outname <- paste(outname,index,sep="-")
-  }
-  writeStatisticsExcel(subFrame,outname,paste("vmeNormalizedModeVsSigni",index,sep="-"),subfolder=subfolder)
-}
-
-
-
-
 correctModeVsIndex <- function(significanceLevel  = 0.1)
 {
-  frame <- readStatisticsExcel("errorStatistics")
+  frame <- readStatisticsExcel("errorStatisticsFrac")
   subFrame <- frame
   subFrame <- subFrame %>% 
     filterIndexRange(c(4:8)) %>%
@@ -437,7 +303,7 @@ correctModeVsIndex <- function(significanceLevel  = 0.1)
 metricVsSignificanceLevel <- function(mode  = MODE_A)
 {
   indexRange <- c(4,6,8)
-  frame <- readStatisticsExcel("errorStatistics")
+  frame <- readStatisticsExcel("errorStatisticsFrac")
   subFrame <- frame
   subFrame <- subFrame %>% 
     filterMode(mode) %>% 
@@ -847,31 +713,27 @@ sanitycheck <- function()
 ALL <- function ()
 {
   #merge data from different modes
-  mergeModesErrorStatistics()
-#  lapply(SELECTED,function(x){mergeModesErrorStatistics(prefix = paste(x,collapse="_"),subfolder = "subset")})
-  mergeModesErrorStatistics(prefix = "oneperabgroup",subfolder = "")
-  #mergeModesErrorStatistics(prefix = "nonATUstats",subfolder = "subset")
-
-  mergeRiskStratifiedStatistics()
-  mergeRiskStratifiedStatistics(prefix = "oneperabgroup",subfolder = "")
-
+  for(aPrefix in c(NA,SUBGROUPS)){
+    mergeModesErrorStatistics(prefix = aPrefix)
+    mergeRiskStratifiedStatistics(prefix = aPrefix)
+  }
     
-  #Figure 4 
+  #Figure 5A
   correctSignificanceLevelVsIndex(MODE_A)
-#  metricsVsIndex(MODE_A)
+  #Figure 5B
   metricVsSignificanceLevel(MODE_A)
 
-  #Fig 5
-  correctModeVsSignificanceLevel()
+  #Fig 6A
   correctModeVsIndex()
-  
+  #Fig 6B
+  correctModeVsSignificanceLevel()
 
-  # Fig 6
-  antibioticsVsMetric(MODE_A)
-#  antibioticsVsMode(6)
+  # Fig 7A
   correctAntibioticsVsIndex(MODE_A)
+  # Fig7B
+  antibioticsVsMetric(MODE_A)
 
-  #Fig 7
+  #Fig 8A-D
   correctRAntibioticsVsSignificanceLevel()
   correctSAntibioticsVsSignificanceLevel()
   meRateAntibioticsVsSignificanceLevel()
@@ -885,11 +747,11 @@ ALL <- function ()
 # meRateAntibioticsVsSignificanceLevel(index=13)
 # vmeRateAntibioticsVsSignificanceLevel(index=13)
 
-  meRateAntibioticsVsIndex()
-  vmeRateAntibioticsVsIndex()
-  meRateAntibioticsVsIndex(prefix = "oneperabgroup")
-  vmeRateAntibioticsVsIndex(prefix = "oneperabgroup")
-  
+  for(aPrefix in c(NA,ONEPERABGROUP)){
+    
+  meRateAntibioticsVsIndex(prefix = aPrefix)
+  vmeRateAntibioticsVsIndex(prefix = aPrefix)
+  }
   
 
   meRateAntibioticsVsIndex <- readStatisticsExcel(name ="meRateAntibioticsVsIndex-4_6_8-Mode-A")
