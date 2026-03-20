@@ -1,1 +1,0 @@
-"C:\Program Files\R\R-4.3.3\bin\R.exe" CMD BATCH model/run.R most.log

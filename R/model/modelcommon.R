@@ -25,6 +25,11 @@ BEST_SELECTION <- c(fourbest = "TZP_CAZ_LVX_TOB",fivebest = "AMC_TZP_CAZ_LVX_TOB
 ONEPERABGROUP <- "oneperabgroup"
 SUBGROUPS <- c(names(BEST_SELECTION),ONEPERABGROUP)
 
+PENICILLINS <- c("AMP","AMC","PIP","TZP")
+CEPHALOSPORINS <- c("CAZ","CRO","CTX","FEP")
+FLOUROQUINOLONS <- c("CIP" ,"OFX" ,"LVX" ,"MFX")
+AMINOGLYCOSIDES <- c("GEN" ,"TOB")
+AB_GROUPS <- list(PENICILLINS,CEPHALOSPORINS,FLOUROQUINOLONS,AMINOGLYCOSIDES)
 
 
 
@@ -39,50 +44,84 @@ COMPARE_NOT_PREDICTED <- "notpredicted"
 #Names in the model, and basic order in which they should
 ALL_ANTIBIOTICS_IN_MODEL <- c("AMP","AMC","PIP","TZP","CAZ","CRO","CTX","FEP","CIP","OFX","LVX","MFX","GEN","TOB")
 
-
-#MODE <- "Mode-A"
-#MODE <- "Mode-B"
-#MODE <- "Mode-C"
-minusAMC <- FALSE
-
-if(!minusAMC) {
-	  NUMBER_OF_ANTIBIOTICS <- 14
-	  ANTIBIOTICS = c("AMP",	"AMC"	,"PIP"	,"TZP",	"CAZ",	"CRO",	"CTX"	,"FEP"	,"CIP"	,"OFX"	,"LVX"	,"MFX"	,"GEN"	,"TOB")
-	  PASCAL = c(14,91,364,1001,2002,3003,3432,3003,2002,1001,364,91,14)
-	} else {
-	  NUMBER_OF_ANTIBIOTICS <- 13
-	  ANTIBIOTICS = c("AMP",	"PIP"	,"TZP",	"CAZ",	"CRO",	"CTX"	,"FEP"	,"CIP"	,"OFX"	,"LVX"	,"MFX"	,"GEN"	,"TOB")
-	  PASCAL = c(13,78,286,715,1287,1716,1716,1287,715,286,78,13)
+paste_non_na <- function(..., sep = "_") {
+  x <- c(...)
+  x <- x[!is.na(x)]
+  paste(x, collapse = sep)
 }
+
+METRICS <- c(
+  "S", #answer S, pred any
+  "R", #answer R, pred any
+  "correctS", #answer S, pred S
+  "correctR", #answer R, pred R
+  "falseS", #answer R, pred S
+  "falseR", #answer S, pred R
+  "zerolabelS", #answer S, pred empty
+  "zerolabelR", #answer R, pred empty
+  "twolabelS",  #answer S, pred S/R
+  "twolabelR", #answer R, pred S/R
+  "total"      #answer any, pred any
+)
+
+
+
+PASCAL = c(14,91,364,1001,2002,3003,3432,3003,2002,1001,364,91,14)
 
 range <- 4:(NUMBER_OF_ANTIBIOTICS - 1)
 
 
+getModelInputFolder <- function()
+{
+  paste(modelDirectory,
+        "input",
+        sep = "/")
+}
+
+
+getCommonModelFolder <- function()
+{
+  paste(modelDirectory,
+        "output",
+        modelVersion,
+        "common",
+        sep = "/")
+}
+
+
 getPredictionBase <- function(mode){
-	if(!minusAMC)
-	  {
 	  PREDICTION_BASE <-
 	  paste(modelDirectory,
 	        "output",
 	        modelVersion,
 	        mode,
 	        sep = "/")
-	} else {
-	  PREDICTION_BASE <-
-	    paste(modelDirectory,
-	          "output",
-	          modelVersion,
-	          mode,
-	          "minusAMC",
-	          sep = "/")
-	}
-	#PREDICTION_BASE <-
-	#  paste(modelDirectory,
-	#        "finished",
-	#        "I_to_R_noDate",
-	#        "SR_as_word",
-	#        sep = "/")
 	PREDICTION_BASE
+}
+
+
+getPredictionAltFolder <- function(mode)
+{
+  paste(getPredictionBase(mode),
+        "predsalt",
+        sep = "/")
+  
+}
+
+getConformalPredictionFolder <- function(mode)
+{
+  paste(getPredictionBase(mode),
+        "predscp",
+        sep = "/")
+}
+
+getCommonModelFolder <- function()
+{
+  paste(modelDirectory,
+        "output",
+        modelVersion,
+        "common",
+        sep = "/")
 }
 
 

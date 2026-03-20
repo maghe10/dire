@@ -1,0 +1,103 @@
+```{r}
+print(getwd())
+source(file = 'manuscript/manuscriptcommon.R')
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(scales)
+library(forcats)
+library(readxl)
+
+```
+
+```{r}
+print("Without conformal predictions")
+countFrame <- readCountFrameLongSum() %>% 
+  defaults() %>%
+  filter_and_drop(significanceLevel, NA)
+
+
+head(countFrame)
+
+oneLineFrame <- countFrame %>% pivot_wider(values_from = count, names_from = metric) %>% mutate(correct = correctR + correctS)
+
+print("Error rates")
+oneLineFrame %>% countsToErrorErrorRates()
+
+print("Fractions")
+oneLineFrame %>% countsToFracClinical()
+
+```
+
+```{r}
+print("Without conformal predictions on antibiotics level")
+countFrame <- readCountFrameLong() %>% 
+  defaults() %>%
+  filter_and_drop(significanceLevel, NA) %>%
+  filter_and_drop(noinputab, 6)
+
+head(countFrame)
+
+oneLineFrame <- countFrame %>% pivot_wider(values_from = count, names_from = metric) %>% mutate(correct = correctR + correctS)
+
+print("Error rates")
+oneLineFrame %>% countsToErrorErrorRates()
+
+print("Fractions")
+oneLineFrame %>% countsToFracClinical()
+
+```
+
+```{r}
+print("With conformal predictions")
+countFrame <- readCountFrameLongSum() %>% 
+  defaults() %>%
+   filter_and_drop(noinputab, 6)
+
+
+head(countFrame)
+
+oneLineFrame <- countFrame %>% pivot_wider(values_from = count, names_from = metric) %>% mutate(correct = correctR + correctS)
+
+print("Error rates with 6 ab")
+oneLineFrame %>% countsToErrorErrorRates()
+
+print("Fractions with 6 ab")
+oneLineFrame %>% countsToFracClinical()
+
+
+
+```
+
+```{r}
+print("With comparing modes")
+countFrame <- readCountFrameLongSum() %>% 
+  defaultCpMode() %>%
+   filter_and_drop(significanceLevel, NA) %>%
+  filter_and_drop(noinputab, 6)
+
+
+head(countFrame)
+
+oneLineFrame <- countFrame %>% pivot_wider(values_from = count, names_from = metric) %>% mutate(correct = correctR + correctS)
+
+print("Error rates different modes 6 antibiotics")
+oneLineFrame %>% countsToErrorErrorRates()
+
+
+### antibiotics level
+print("With comparing modes, antibiotics level")
+countFrame <- readCountFrameLong() %>% 
+  defaultCpMode() %>%
+   filter_and_drop(significanceLevel, NA) %>%
+  filter_and_drop(noinputab, 6)
+
+
+head(countFrame)
+
+oneLineFrame <- countFrame %>% pivot_wider(values_from = count, names_from = metric) %>% mutate(correct = correctR + correctS)
+
+print("Error rates different modes 6 antibiotics")
+oneLineFrame %>% countsToErrorErrorRates()
+
+```

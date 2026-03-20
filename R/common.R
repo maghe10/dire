@@ -1,6 +1,12 @@
 library(readr)
 
 
+EUCAST_VERSION  <- "13.0"
+
+NUMBER_OF_ANTIBIOTICS <- 14
+ANTIBIOTICS = c("AMP",	"AMC"	,"PIP"	,"TZP",	"CAZ",	"CRO",	"CTX"	,"FEP"	,"CIP"	,"OFX"	,"LVX"	,"MFX"	,"GEN"	,"TOB")
+
+
 # Anders last model
 #modelVersion <- "250410"
 
@@ -8,7 +14,10 @@ library(readr)
 #modelVersion <- "251111"
 
 #Juans first model with correct patient data
-modelVersion <- "251119"
+#modelVersion <- "251119"
+
+#Juans first model with conformalprediction
+modelVersion <- "251204"
 
 
 
@@ -37,8 +46,11 @@ assemblymethod <- 'spades_standard'
 
 assemblyDirectory <- paste(direRoot,assemblymethod,"assembly",sep="/")
 #amrfinderDatabase <- "231115.1"
-amrfinderDatabase <- "2024-12-18.1"
+#amrfinderDatabase <- "2024-12-18.1"
+amrfinderDatabase <- "2026-01-21.1"
 amrfinderDirectory <- paste(direRoot,assemblymethod,"amrfinder",amrfinderDatabase,sep="/")
+
+aribaDirectory <- paste(direRoot,"Illumina","ariba",sep="/")
 
 resfinderDatabase <- "v460"
 resfinderDirectory <- paste(direRoot,assemblymethod,"resfinder",resfinderDatabase,sep="/")
@@ -58,6 +70,10 @@ checkmDirectory <- paste(qualityDirectory,"checkm",sep="/")
 processedRoot <- paste(direRoot,"Analyser","processed", sep="/")
 
 processedRootR <-  paste(processedRoot,"R", sep="/")
+processedRootRcommon <-  paste(processedRootR,"common", sep="/")
+processedRootRcluster <-  paste(processedRootR,"cluster", sep="/")
+
+
 processedRootRassembly <- paste(processedRootR,assemblymethod, sep="/")
 modelDirectory <-  paste(processedRootR,"model", sep="/")
 manuscriptDirectory <-  paste(processedRootR,"manuscript", modelVersion, sep="/")
@@ -78,3 +94,64 @@ sampleAsColumns <- function(dataframe)
   colnames(csvTable)[1] = "sample"
   csvTable
 }
+
+normalize_sample_id <- function(x) {
+  x <- as.character(x)
+  x[x %in% c("", "NA")] <- NA_character_
+  
+  out <- x |>
+    stringr::str_remove("\\.tsv$") |>
+    stringr::str_remove("_amrfinderplus$") |>
+    stringr::str_remove("_amrfinder$") |>
+    stringr::str_extract("[0-9]+")
+  
+  out_num <- suppressWarnings(as.integer(out))
+  
+  out_chr <- rep(NA_character_, length(out_num))
+  ok <- !is.na(out_num)
+  out_chr[ok] <- sprintf("%03d", out_num[ok])
+  
+  out_chr
+}
+
+readModelMillimeterTable <- function()
+{
+    fileName <- "modelmillimetertable.csv"
+    read.csv2(file.path(processedRootRcommon,fileName))
+}
+
+readMillimeterTable <- function()
+{
+  fileName <- "millimetertable.csv"
+  read.csv2(file.path(processedRootRcommon,fileName))
+}
+
+readDemographicsTable <- function()
+{
+  fileName <- "demographicstable.csv"
+  read.csv2(file.path(processedRootRcommon,fileName))
+}
+
+readSirTable <- function(mode = MODE_A)
+{
+  fileName <- sprintf("sirAntibioticsModel_%s.csv",mode)
+  read.csv2(file.path(processedRootRcommon,fileName))
+}
+
+filter_and_drop <- function(df, col, values) {
+
+  col_quo <- enquo(col)
+  
+  # dela upp värden i NA och icke-NA
+  values_no_na <- values[!is.na(values)]
+  want_na      <- any(is.na(values))
+  
+  df %>%
+    dplyr::filter(
+      (!!col_quo %in% values_no_na) | (want_na & is.na(!!col_quo))
+    ) %>%
+    select(-!!col_quo)
+}
+
+
+

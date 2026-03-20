@@ -1,0 +1,1 @@
+"C:\Program Files\R\R-4.5.2\bin\R.exe" CMD BATCH model/convert_to_preds.R convert.log

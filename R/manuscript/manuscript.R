@@ -1,6 +1,7 @@
-source(file = 'clear.R')
-source(file = 'manuscript/selectExcelStatisticsTables.R')
-ALL()
+print(getwd())
+# source(file = 'clear.R')
+# source(file = 'manuscript/selectExcelStatisticsTables.R')
+# ALL()
 
 source(file = 'clear.R')
 source(file = 'manuscript/selectExcelOtherTables.R')
@@ -11,5 +12,5 @@ source(file = 'manuscript/selectPictures.R')
 ALL()
 
 source(file = 'clear.R')
-source(file = 'manuscript/plotStatisticsTables.R')
+source(file = 'manuscript/manuscript_figures.R')
 ALL()

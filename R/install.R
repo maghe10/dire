@@ -1,29 +1,53 @@
-install.packages("dplyr")
-install.packages("tidyr")
-install.packages("tidyverse") 
-install.packages("cluster")   
-install.packages("factoextra")
-install.packages("stringr")
-install.packages("scales")
-install.packages("forcats")
-install.packages("ggplot2")
+# Main packages you explicitly work with
+main_pkgs <- c(
+  "tidyverse",
+  "cluster",
+  "factoextra",
+  "readxl",
+  "writexl",
+  "openxlsx",
+  "pheatmap",
+  "png",
+  "reticulate",
+  "gridpattern",
+  "R.utils",
+  "svglite",
+  "patchwork",
+  "fpc",
+  "fst",
+  "arrow",
+  "ggtext",
+  "furrr",
+  "future",
+  "janitor",
+  "httr2",
+  "uwot",
+  "pvclust"
+)
 
+# Dependencies (for reference only)
+dep_pkgs <- c(
+  "dplyr",
+  "tidyr",
+  "stringr",
+  "scales",
+  "forcats",
+  "ggplot2"
+)
 
-install.packages("readxl")
-install.packages("writexl")
-install.packages("openxlsx")
+# Install only missing main packages
+to_install <- setdiff(main_pkgs, rownames(installed.packages()))
+if (length(to_install) > 0) {
+  install.packages(to_install)
+}
 
-install.packages("pheatmap")
-install.packages("png")
-install.packages("reticulate")
-install.packages("gridpattern")
-install.packages('R.utils')
+# ---- Dependency Check ----
+missing_deps <- setdiff(dep_pkgs, rownames(installed.packages()))
 
+if (length(missing_deps) == 0) {
+  message("All dependency packages are installed.")
+} else {
+  message("Missing dependency packages:\n  - ",
+          paste(missing_deps, collapse = "\n  - "))
+}
 
-install.packages('svglite')
-
-install.packages('patchwork')
-install.packages('fpc')
-install.packages('fst')
-install.packages('arrow')
-install.packages("ggtext")

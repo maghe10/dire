@@ -23,3 +23,32 @@ R/all.log
 R/genotype/.Rhistory
 R/model/run.Rout
 R/Rplots.pdf
+.settings/org.eclipse.core.resources.prefs
+model/bin/.RData
+model/bin/.RData
+model/bin/bin.Rproj
+model/bin/conda_env_explicit.txt
+model/bin/runBC_juan.sh
+model/bin/runA12_juan.sh
+/model/Confidence-based-Prediction-of-Antibiotic-Resistance
+model/bin/runA_juan.sh
+R/manuscript/BeforeReorderAndFixScalemetric_plot_helpers.R
+R/manuscript/CopyBeforeReorderOfmetric_plot_helpers.R
+R/manuscript/README.txt
+model/bin/.RData
+model/bin/.Rhistory
+R/model/rerunSelection.R
+model/bin/.RData
+model/bin/.Rhistory
+model/bin/.vscode/launch.json
+model/bin/bin.code-workspace
+R/-WL-251030-013.Rhistory
+/R/.quarto
+*.R
+R/phenotype/.Rhistory
+tools/bin/resfinder_db/
+R/manuscript/NESCMID 2026.qmd
+model/bin/.RData
+model/bin/conda env create -f environment_jua.txt
+model/bin/diagnos.py
+model/bin/environment_legacy_juancpuw.yml
