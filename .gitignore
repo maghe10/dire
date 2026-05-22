@@ -44,7 +44,6 @@ model/bin/.vscode/launch.json
 model/bin/bin.code-workspace
 R/-WL-251030-013.Rhistory
 /R/.quarto
-*.R
 R/phenotype/.Rhistory
 tools/bin/resfinder_db/
 R/manuscript/NESCMID 2026.qmd
@@ -52,3 +51,5 @@ model/bin/.RData
 model/bin/conda env create -f environment_jua.txt
 model/bin/diagnos.py
 model/bin/environment_legacy_juancpuw.yml
+tools/bin/runerikasisolates.sh
+tools/bin/genelist.txt

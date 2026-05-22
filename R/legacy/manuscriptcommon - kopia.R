@@ -1,7 +1,7 @@
 ###########
 
 #source(file = 'common.R')
-source(file = 'model/modelcommon.R')
+source(file = 'model/modelcommon - kopia.R')
 source(file = 'manuscript/metric_helpers_common.R')
 
 library(scales)
@@ -102,12 +102,12 @@ readCountFrameLongGroups <- function()
   
 }
 
-readCountFrameWideSumByGroup <- function(prefix=NA) {
-  readCountFrameLongSumByGroup(prefix=prefix) %>% pivot_wider(names_from = metric, values_from = count)
+readCountFrameWideSumByGroup <- function() {
+  readCountFrameLongSumByGroup() %>% pivot_wider(names_from = metric, values_from = count)
 }
 
-readCountFrameLongSumByGroup <- function(prefix=NA) {
-  readCountFrameLong(prefix=prefix) %>%
+readCountFrameLongSumByGroup <- function() {
+  readCountFrameLong() %>%
     dplyr::mutate(
       ab_group = dplyr::case_when(
         antibiotic %in% c("AMP", "PIP", "AMC", "TZP") ~ "Penicillins",
@@ -128,9 +128,9 @@ readCountFrameLongSumByGroup <- function(prefix=NA) {
 
 
 
-readCountFrameLongSum <- function(prefix=NA)
+readCountFrameLongSum <- function()
 {
-  readCountFrameLong(prefix) %>%
+  readCountFrameLong() %>%
     group_by(cpmode, mode, noinputab, metric, significanceLevel) %>%
     summarise(
       count = sum(count, na.rm = TRUE),
@@ -161,9 +161,9 @@ readCountSampleFrameLongSum_AggregatedOnAntibiotic <-function(){
 
 
 
-readCountFrameWideSum <- function(prefix=NA)
+readCountFrameWideSum <- function()
 {
-  readCountFrameLongSum(prefix) %>% pivot_wider(names_from = metric, values_from = count)
+  readCountFrameLongSum() %>% pivot_wider(names_from = metric, values_from = count)
 }
 
 
@@ -174,15 +174,11 @@ readCountFrameWide <- function(prefix=NA)
 }
 
 
-readCountSampleFrameWide <- function(prefix=NA)
+readCountSampleFrameWide <- function()
 {
-  readCountSampleFrameLong(prefix) %>% pivot_wider(names_from = metric, values_from = count)
+  readCountSampleFrameLong() %>% pivot_wider(names_from = metric, values_from = count)
 }
 
-readCountWordFrameWide <- function(prefix=NA)
-{
-  readCountWordFrameLong(prefix) %>% pivot_wider(names_from = metric, values_from = count)
-}
 
 
 readCountFrameLong <- function(prefix=NA)
@@ -203,17 +199,9 @@ readCountWordFrameLong <- function(prefix=NA)
   dfCountLong
 }
 
-readCountWordFrameWide_AggregateOnAntibiotic <-function(prefix = NA)
+readCountWordFrameLong_AggregateOnAntibiotic <-function()
 {
-  readCountWordFrameLong_AggregateOnAntibiotic(prefix = prefix) %>% pivot_wider(names_from = metric, values_from = count)
-}
-  
-  
-  
-
-readCountWordFrameLong_AggregateOnAntibiotic <-function(prefix = NA)
-{
-  readCountWordFrameLong(prefix = prefix) %>%
+  readCountWordFrameLong() %>%
     group_by(cpmode, mode, word, noinputab, metric, significanceLevel) %>%
     summarise(
       count = sum(count, na.rm = TRUE),
