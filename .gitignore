@@ -53,3 +53,12 @@ model/bin/diagnos.py
 model/bin/environment_legacy_juancpuw.yml
 tools/bin/runerikasisolates.sh
 tools/bin/genelist.txt
+base260522.yml
+dire_p31012_260522.yml
+tools/bin/pipeline_full_excluding_confindr.py
+tools/confindr/test_out/confindr_log.txt
+/tools/confindr/test_out
+/tools/confindr/test_samples
+tools/install/silver_version_260525.log
+tools/install/version260525.txt
+tools/confindr/test_samples.tar.gz

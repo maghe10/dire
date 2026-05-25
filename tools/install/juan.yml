@@ -1,0 +1,20 @@
+name: juan
+channels:
+  - defaults
+dependencies:
+  - pyyaml=5.4.1
+  - python=3.9.5
+  - torchaudio
+  - scikit-learn
+  - pytorch=1.11.0
+  - torchtext
+  - torchvision
+  - cpuonly
+  - tqdm
+  - seaborn
+  - ipywidgets
+  - ipython=7.25.0
+  - pip
+  - matplotlib
+  - jupyterlab
+prefix: /root/miniconda3/envs/juan

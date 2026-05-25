@@ -1,0 +1,25 @@
+name: dire_all
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python=3.12
+  - ariba
+  - checkm-genome
+  - chardet
+  - cutadapt
+  - fastqc
+  - gsl
+  - hmmer
+  - multiqc
+  - ncbi-amrfinderplus
+  - pplacer
+  - prodigal
+  - quast
+  - seqkit
+  - setuptools
+  - spades
+  - trim-galore
+  - typing-extensions
+  - unicycler
