@@ -11,8 +11,16 @@ suppressPackageStartupMessages({
 folder <- aribaDirectory
 outdir <- paste(processedRootRassembly, "genotype", sep="/")
 
-files <- list.files(folder, pattern = "^sample.*\\.tsv$", full.names = TRUE)
-stopifnot(length(files) > 0)
+
+files <- list.files(
+  folder,
+  pattern = "^report\\.tsv$",
+  recursive = TRUE,
+  full.names = TRUE
+)
+
+#files <- list.files(folder, pattern = "^sample.*\\.tsv$", full.names = TRUE)
+#stopifnot(length(files) > 0)
 
 dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
 
@@ -23,14 +31,17 @@ read_ariba_tsv <- function(f) {
   readr::read_tsv(f, col_types = cols(.default = "c"), progress = FALSE) %>%
     janitor::clean_names() %>%
     mutate(
-      source_file = basename(f),
-      sample_id = normalize_sample_id(source_file)
+#      source_file = basename(f),
+#      sample_id = normalize_sample_id(source_file)
+#      source_file = f,
+      sample_id = normalize_sample_id(basename(dirname(f)))
     ) %>%
     filter(!is.na(sample_id))
 }
 
 all_hits <- purrr::map_dfr(files, read_ariba_tsv) %>%
-  relocate(sample_id, source_file) %>%
+#  relocate(sample_id, source_file) %>%
+  relocate(sample_id) %>%
   filter(!sample_id %in% c("014", "038"))
 
 
@@ -108,7 +119,8 @@ all_hits <- all_hits %>%
 # Vi grupperar på sample + ref_name + cluster + gene_symbol
 # eftersom samma gene/hit ofta ligger på flera rader.
 ariba_genes <- all_hits %>%
-  group_by(sample_id, source_file, cluster, ref_name, gene_symbol) %>%
+  group_by(sample_id, cluster, ref_name, gene_symbol) %>%
+#  group_by(sample_id, source_file, cluster, ref_name, gene_symbol) %>%
   summarise(
     ref_len = max(ref_len, na.rm = TRUE),
     ref_base_assembled = max(ref_base_assembled, na.rm = TRUE),
@@ -144,7 +156,8 @@ ariba_genes <- all_hits %>%
   mutate(
     is_partial = hit_completeness != "complete"
   ) %>%
-  relocate(sample_id, source_file, gene_symbol, cluster, ref_name)
+  #relocate(sample_id, source_file, gene_symbol, cluster, ref_name)
+  relocate(sample_id,gene_symbol, cluster, ref_name)
 
 # fix för grupper där alla värden var NA
 ariba_genes <- ariba_genes %>%

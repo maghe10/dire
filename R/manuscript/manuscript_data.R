@@ -271,4 +271,66 @@ translationModePerformanceDataNonconformal <- function()
   
 }
 
+noPredictions <- function()
+{
+  
+  metrics_long_ab <- derivedMetricsFrameUnambiguous(countFrameWide = readCountFrameWideSum())
+  df_base <- metrics_long_ab %>% 
+    filter_and_drop(mode,MODE_A) %>% 
+    filter_and_drop(cpmode,"normal") %>%
+    filter_and_drop(noinputab,6) %>%
+    filter(!significanceLevel %in% "STD")
+    
+  nopredictions <- df_base %>% pivot_wider(values_from =  value,names_from = metric) %>% mutate (notPredicted = 1-correct-ME-VME)  
+    
+  print(nopredictions)
+}
 
+
+
+
+
+
+
+
+ALL <- function()
+{
+  performance_log_calls <- list(
+    vmemePerformanceDataNonconformal = function() {
+      vmemePerformanceDataNonconformal()
+    },
+    
+    correctPerformanceDataNonconformal = function() {
+      correctPerformanceDataNonconformal()
+    },
+    
+    f1MMCPerformanceDataNonconformal = function() {
+      f1MMCPerformanceDataNonconformal()
+    },
+    
+    f1MMCPerformanceData90percent = function() {
+      f1MMCPerformanceData90percent()
+    },
+    
+    f1MMCPerformanceDataOnePerGroup = function() {
+      f1MMCPerformanceDataOnePerGroup()
+    },
+    
+    optimalMCC = function() {
+      optimalMCC()
+    },
+    
+    translationModePerformanceDataNonconformal = function() {
+      translationModePerformanceDataNonconformal()
+    },
+    
+    noPredictions = function() {
+      noPredictions()
+    }
+  )
+  
+  run_with_log(
+    calls = performance_log_calls,
+    log_file = paste(manuscriptDirectory,"manuscript_data_log.txt",sep = "/")
+  )
+}

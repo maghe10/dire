@@ -34,9 +34,5 @@ source('cluster/cluster.R')
 ALL()
 
 source('clear.R')
-source('manuscript/QC.R')
-ALL()
+source('manuscript/manuscript.R')
 
-source('clear.R')
-source('manuscript/manuscript_figures.R')
-ALL()

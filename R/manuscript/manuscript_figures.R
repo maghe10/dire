@@ -37,6 +37,7 @@ plot_one_metric_grouped <- function(metrics_filtered,
                                      column_var,     # string, e.g. "noinputab" or "significanceLevel"
                                      id_levels = NULL,
                                      column_levels = NULL,
+                                     column_labels = column_levels,
                                      legend_title = NULL) {
   
   df_wide <- metrics_filtered %>%
@@ -58,6 +59,7 @@ plot_one_metric_grouped <- function(metrics_filtered,
     measure_cols = column_levels,
     id_levels = id_levels,
     group_levels = column_levels,
+    group_labels = column_labels,
     legend_title = ifelse(is.null(legend_title), column_var, legend_title),
     y_label = ylab,
     y_as_percent = y_as_percent,
@@ -85,6 +87,7 @@ plot_metric_panels_grouped <- function(metrics_long,
                                         export = TRUE,
                                         id_levels = NULL,
                                         column_levels = NULL,
+                                        column_labels = column_levels,
                                         legend_title = NULL) {
   
   if (!requireNamespace("patchwork", quietly = TRUE)) {
@@ -105,6 +108,7 @@ plot_metric_panels_grouped <- function(metrics_long,
       column_var = column_var,
       id_levels = id_levels,
       column_levels = column_levels,
+      column_labels = column_labels,
       legend_title = legend_title
     )
   }
@@ -191,6 +195,7 @@ plotAntibioticsMetricsVsSignificanceLevel_Abgroups <- function(tag) {
     countFrameWide = readCountFrameWideSumByGroup(),
     vars = AB_GROUP_GROUPS_VAR
   )
+  column_labels = setNames(CONFIDENCE_LEVELS, SIGNIFICANCE_LEVELS)
   
   plot_metric_panels_grouped(
     metrics_long = metrics_long_ab,
@@ -213,6 +218,7 @@ plotAntibioticsMetricsVsSignificanceLevel_Abgroups <- function(tag) {
     export       = TRUE,
     legend_title = significance_level_legend_title,
     column_levels = SIGNIFICANCE_LEVELS,
+    column_labels = column_labels,
     id_levels = AB_GROUPS_LEVELS
   )
 }
@@ -262,6 +268,7 @@ plotAntibioticsMetricsVsNoinputAbOnePerAbGroup <- function(tag) {
 plotAntibioticsMetricsVsSignificanceLevel <- function(tag) {
   
   metrics_long_ab <- derivedMetricsFrame()
+  column_labels = setNames(CONFIDENCE_LEVELS, SIGNIFICANCE_LEVELS)
   
   plot_metric_panels_grouped(
     metrics_long = metrics_long_ab,
@@ -284,6 +291,7 @@ plotAntibioticsMetricsVsSignificanceLevel <- function(tag) {
     export       = TRUE,
     legend_title = significance_level_legend_title,
     column_levels = SIGNIFICANCE_LEVELS,   # if your helper supports this, set it too
+    column_labels = column_labels,
     id_levels = ANTIBIOTICS_LEVELS
   )
 }
@@ -293,6 +301,7 @@ plotAntibioticsMetricsVsSignificanceLevelSixBest <- function(tag) {
   countFrameWide = readCountWordFrameWide() %>% filter_and_drop(word,"AMC_TZP_CTX_CIP_OFX_TOB") 
   metrics_long_ab <- derivedMetricsFrame(countFrameWide=countFrameWide)
   #metrics_long_ab <- derivedMetricsFrame("sixbest")
+  column_labels = setNames(CONFIDENCE_LEVELS, SIGNIFICANCE_LEVELS)
   
   plot_metric_panels_grouped(
     metrics_long = metrics_long_ab,
@@ -315,6 +324,7 @@ plotAntibioticsMetricsVsSignificanceLevelSixBest <- function(tag) {
     export       = TRUE,
     legend_title = significance_level_legend_title,
     column_levels = SIGNIFICANCE_LEVELS,   # if your helper supports this, set it too
+    column_labels =  column_labels,
     id_levels = ANTIBIOTICS_LEVELS
   )
 }
@@ -489,15 +499,21 @@ plotUnambiguousCorrectPredictionsAndErrors <- function(tag)
     slice(n():1) 
   
   frameCorrectSignificanceLevelVsIndexModeA$significanceLevel <- SIGNIFICANCE_LEVELS
+#  frameCorrectSignificanceLevelVsIndexModeA$confidenceLevel <- CONFIDENCE_LEVELS
+  
+  id_labels = setNames(CONFIDENCE_LEVELS, SIGNIFICANCE_LEVELS)
+  
   
   pA <- plot_grouped_bars(
     frameCorrectSignificanceLevelVsIndexModeA,
     id_col = "significanceLevel",
     id_levels = SIGNIFICANCE_LEVELS,
+    id_labels = id_labels,
     group_levels = NO_INPUT_LEVELS,
     legend_title = input_antibiotics_legend_title,
     export = FALSE
   )
+  
   
   ncol <- 2
 
@@ -508,6 +524,10 @@ plotUnambiguousCorrectPredictionsAndErrors <- function(tag)
       significanceLevel = factor(significanceLevel, levels = SIGNIFICANCE_LEVELS)
     )
   # 4) Plot
+  
+  confidence_labels <- setNames(CONFIDENCE_LEVELS, SIGNIFICANCE_LEVELS)
+  
+  
   pB <- plot_stacked_bars(
     long,
     x_col = "noinputab",
@@ -523,7 +543,13 @@ plotUnambiguousCorrectPredictionsAndErrors <- function(tag)
     stack_reverse = TRUE,
     export = FALSE
   ) +
-    ggplot2::facet_wrap(~ significanceLevel, ncol = ncol, drop = FALSE) +
+#    ggplot2::facet_wrap(~ significanceLevel, ncol = ncol, drop = FALSE) +
+    ggplot2::facet_wrap(
+      ~ significanceLevel,
+      ncol = ncol,
+      drop = FALSE,
+      labeller = ggplot2::as_labeller(confidence_labels)
+    ) +
     ggplot2::scale_x_discrete(expand = c(0, 0)) +
     ggplot2::theme(
       axis.text.x = ggplot2::element_text(angle = 0, hjust = 0.5),
@@ -568,7 +594,7 @@ plotUnambiguousCorrectPredictionsAndErrorsVersusIndexAntibioticsLevel <- functio
     tag = "A",
     export = FALSE
   ) +
-    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1, vjust = 1))
+    ggplot2::theme(axis.text.x = ggplot2::element_text(size = 7, angle = 45, hjust = 1, vjust = 1))
   
   # --- Panel B: STACKED needs long form for our generic function (self-contained)
   ncol <- 5
@@ -604,7 +630,7 @@ plotUnambiguousCorrectPredictionsAndErrorsVersusIndexAntibioticsLevel <- functio
     ggplot2::facet_wrap(~ antibiotic, ncol = ncol, drop = FALSE, labeller = pad_labeller) +
     ggplot2::scale_x_discrete(expand = c(0, 0)) +
     ggplot2::theme(
-      axis.text.x = ggplot2::element_text(angle = 0, hjust = 0.5, vjust = 0.5),
+      axis.text.x = ggplot2::element_text(size = 7, angle = 0, hjust = 0.5, vjust = 0.5),
       strip.text  = ggplot2::element_text(face = "bold"),
       panel.spacing = grid::unit(0.75, "lines")
     )
@@ -628,11 +654,14 @@ plotUnambiguousCorrectPredictionsAndErrorsSignificanceLevelAntibioticsLevel <- f
   
   long_for_stacked <- metrics_long %>% filter_and_drop(noinputab, 6)
   
+  confidence_labels <- setNames(CONFIDENCE_LEVELS, SIGNIFICANCE_LEVELS)
+  
   pA <- plot_grouped_bars(
     frameCorrectAntibioticsVsSignificanceLevel,
     id_col = "antibiotic",
     id_levels = ANTIBIOTICS_LEVELS,
     group_levels = SIGNIFICANCE_LEVELS,
+    group_labels = confidence_labels,
     legend_title = significance_level_legend_title,
     y_label = unambiguous_correct_predictions_y_legend,
     dodge_width = 0.78,
@@ -669,9 +698,12 @@ plotUnambiguousCorrectPredictionsAndErrorsSignificanceLevelAntibioticsLevel <- f
     bar_width = 0.8
   ) +
     ggplot2::facet_wrap(~ antibiotic, ncol = ncol, drop = FALSE, labeller = pad_labeller) +
-    ggplot2::scale_x_discrete(expand = c(0, 0)) +
+    ggplot2::scale_x_discrete(
+      labels = confidence_labels,
+      expand = c(0, 0)
+    ) +
     ggplot2::theme(
-      axis.text.x = ggplot2::element_text(angle = 0, hjust = 0.5, vjust = 0.5),
+      axis.text.x = ggplot2::element_text(size = 7, angle = 0, hjust = 0.5, vjust = 0.5),
       strip.text  = ggplot2::element_text(face = "bold"),
       panel.spacing = grid::unit(0.75, "lines")
     )
@@ -774,6 +806,29 @@ make_included_vs_estimated_plot <-function()
     select(id, source, prop) %>%
     pivot_wider(names_from = source, values_from = prop)
 
+#   pA <- plot_grouped_bars(
+#     patients_long,
+#     id_col = "id",
+#     measure_cols = c("Estimated", "Included"),
+#     group_levels = c("Estimated", "Included"),
+#     y_limits = c(0, 0.6),
+#     y_label = NULL,
+#     legend_title = NULL,
+#     tag = "A"
+#   ) +
+# #    scale_fill_manual(values = c("Estimated" = "#00B0F0", "Included" = "#FF0000")) +
+#     scale_x_discrete(
+#       labels = c(
+#         "<18\nFemale", "<18\nMale",
+#         "18-64\nFemale", "18-64\nMale",
+#         "≥65\nFemale", "≥65\nMale"
+#       )
+#     ) +
+#     theme(
+#       axis.text.x = element_text(size = 12, lineheight = 0.9),
+#       legend.position = "bottom",
+#       )
+#   
   pA <- plot_grouped_bars(
     patients_long,
     id_col = "id",
@@ -782,20 +837,17 @@ make_included_vs_estimated_plot <-function()
     y_limits = c(0, 0.6),
     y_label = NULL,
     legend_title = NULL,
-    tag = "A"
+    tag = "A",
+    id_labels = c(
+      "<18\nFemale", "<18\nMale",
+      "18-64\nFemale", "18-64\nMale",
+      "≥65\nFemale", "≥65\nMale"
+    )
   ) +
-#    scale_fill_manual(values = c("Estimated" = "#00B0F0", "Included" = "#FF0000")) +
-    scale_x_discrete(
-      labels = c(
-        "<18\nFemale", "<18\nMale",
-        "18-64\nFemale", "18-64\nMale",
-        "≥65\nFemale", "≥65\nMale"
-      )
-    ) +
     theme(
       axis.text.x = element_text(size = 12, lineheight = 0.9),
-      legend.position = "bottom",
-      )
+      legend.position = "bottom"
+    )
   
   
   samples <- read.csv2(file.path(processedRootRcommon, "samples.csv"))
@@ -808,7 +860,8 @@ make_included_vs_estimated_plot <-function()
     y_limits = c(0, 0.6),
     y_label = NULL,
     legend_title = NULL,
-    tag = "B"
+    tag = "B",
+    id_labels = samples$Category
   )
   
   pAB <- combine_tagged(
@@ -946,6 +999,16 @@ ALL_PEK_FIGURES <- function()
   n <- n + 1
   
   file <- paste(processedRootRcluster,"predictionerror_genotype_sir6.png",sep="/")
+  stopifnot(file.exists(file))
+  file.copy(from = file, to = paste(manuscriptPlotDirectory,suppFigure(n),sep = "/"),overwrite = TRUE)
+  n <- n + 1
+  
+  file <- paste(manuscriptDirectory,"error_vs_genotype","plot", "boxplot_mean_abs_error_by_property.png",sep="/")
+  stopifnot(file.exists(file))
+  file.copy(from = file, to = paste(manuscriptPlotDirectory,suppFigure(n),sep = "/"),overwrite = TRUE)
+  n <- n + 1
+  
+  file <- paste(manuscriptDirectory,"error_vs_genotype","plot", "ttest_difference_forest_plot.png",sep="/")
   stopifnot(file.exists(file))
   file.copy(from = file, to = paste(manuscriptPlotDirectory,suppFigure(n),sep = "/"),overwrite = TRUE)
   n <- n + 1

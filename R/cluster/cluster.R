@@ -1299,56 +1299,6 @@ estimate_optimal_number_of_clusters <- function(data_matrix, max_k = 10, seed = 
   )
 }
 
-fetchPredictionErrors <- function()
-{
-
-  metrics_long_ab <- derivedMetricsFrame(countFrameWide = readCountSampleFrameWide(),vars = SAMPLE_GROUPS_VAR)
-  
-  errors <- metrics_long_ab %>% 
-    filter_and_drop(mode,MODE_A) %>% 
-    filter_and_drop(cpmode,"normal") %>%
-    filter_and_drop(significanceLevel,"STD") %>%
-    filter_and_drop(noinputab,6) %>%
-    filter(metric %in% c("ME","VME"))
-  
-  error_matrix <- errors %>%
-    pivot_wider(
-      names_from = metric,
-      values_from = value
-    ) %>%
-    mutate(
-      n_na = rowSums(is.na(across(c(ME, VME))))
-    ) %>%
-    {
-      if (any(.$n_na != 1)) {
-        stop("Sanity check failed: each sample-antibiotic pair must have exactly one NA among ME and VME")
-      }
-      .
-    } %>%
-    mutate(
-      combined = if_else(!is.na(ME), ME, -VME)
-    ) %>%
-    select(sample, antibiotic, combined) %>%
-    mutate(
-      antibiotic = factor(antibiotic, levels = ANTIBIOTICS)
-    ) %>%
-    complete(sample, antibiotic = factor(ANTIBIOTICS, levels = ANTIBIOTICS)) %>%
-    pivot_wider(
-      names_from = antibiotic,
-      values_from = combined
-    ) %>%
-    arrange(sample) %>%
-    as.data.frame()
-  
-  rownames(error_matrix) <- error_matrix$sample
-  error_matrix$sample <- NULL
-  
-  error_matrix <- error_matrix[, ANTIBIOTICS]
-  
-  stopifnot(all(colnames(error_matrix) == ANTIBIOTICS))
-  error_matrix
-}
-
 # ============================================================
 # Main workflow
 # ============================================================
@@ -1458,13 +1408,24 @@ make_cluster_and_heatmaps <- function(data_dir = processedRootRcommon,
 
   
   
+  # combined_1 <- (
+  #   (cluster_plot + panel_box_theme) +
+  #     (wrap_pheatmap(primary_heatmap) & panel_box_theme) + 
+  #     (wrap_pheatmap(sir_heatmap) & panel_box_theme)
+  # ) +
+  #   plot_layout(ncol = 3) +
+  #   plot_annotation(tag_levels = "A")
+  
   combined_1 <- (
     (cluster_plot + panel_box_theme) +
       (wrap_pheatmap(primary_heatmap) & panel_box_theme) + 
       (wrap_pheatmap(sir_heatmap) & panel_box_theme)
   ) +
     plot_layout(ncol = 3) +
-    plot_annotation(tag_levels = "A")
+    plot_annotation(
+      tag_levels = list(c("A", "B", "C"))
+    )
+  
   
   genotypeGroupTable <- getGenotypeGroupTable()
   caa <- caaBasic
@@ -1473,7 +1434,7 @@ make_cluster_and_heatmaps <- function(data_dir = processedRootRcommon,
     caa = caa,
     decorate_fun = decorate_with_functional_group_presence,
     genotypeGroupTable = genotypeGroupTable,
-    label_map = c("darkred" = "ESBL carba", "orange" = "AMPC", "yellow" = "ESBL classic", "grey70" = "Non-ESBL")
+    label_map = c("darkred" = "ESBL carba", "orange" = "AmpC", "yellow" = "ESBL classic", "grey70" = "Non-ESBL")
   )
   print(colnames(caa$annotation))
   
@@ -1543,6 +1504,15 @@ make_cluster_and_heatmaps <- function(data_dir = processedRootRcommon,
                   sir_heatmap)
 
   
+  # combined_2A <- (
+  #   (wrap_pheatmap(ph_list[[1]]) & panel_box_theme) +
+  #     (wrap_pheatmap(ph_list[[2]]) & panel_box_theme) +
+  #     (wrap_pheatmap(ph_list[[3]]) & panel_box_theme) +
+  #     (wrap_pheatmap(ph_list[[4]]) & panel_box_theme)
+  # ) +
+  #   plot_layout(ncol = 4) +
+  #   plot_annotation(tag_levels = "A")
+  #    
   combined_2A <- (
     (wrap_pheatmap(ph_list[[1]]) & panel_box_theme) +
       (wrap_pheatmap(ph_list[[2]]) & panel_box_theme) +
@@ -1550,10 +1520,9 @@ make_cluster_and_heatmaps <- function(data_dir = processedRootRcommon,
       (wrap_pheatmap(ph_list[[4]]) & panel_box_theme)
   ) +
     plot_layout(ncol = 4) +
-    plot_annotation(tag_levels = "A")
-     
-  
-  
+    plot_annotation(
+      tag_levels = list(c("A", "B", "C", ""))
+    )  
   
   caa <- caaBasic
   caa <- decorate_with_quinolone_family_presence(genotypeGroupTable = genotypeGroupTable,caa = caa) 
@@ -1657,16 +1626,25 @@ make_cluster_and_heatmaps <- function(data_dir = processedRootRcommon,
                   primary_heatmap_aminoglycoside_gene,
                   primary_heatmap_betalactam_gene,
                   sir_heatmap)
+  # combined_2B <- (
+  #   (wrap_pheatmap(ph_list[[1]]) & panel_box_theme) +
+  #     (wrap_pheatmap(ph_list[[2]]) & panel_box_theme) +
+  #     (wrap_pheatmap(ph_list[[3]]) & panel_box_theme)+
+  #     (wrap_pheatmap(ph_list[[4]]) & panel_box_theme)
+  # ) +
+  #   plot_layout(ncol = 4) +
+  #   plot_annotation(tag_levels = "A")
+  # 
   combined_2B <- (
     (wrap_pheatmap(ph_list[[1]]) & panel_box_theme) +
       (wrap_pheatmap(ph_list[[2]]) & panel_box_theme) +
-      (wrap_pheatmap(ph_list[[3]]) & panel_box_theme)+
+      (wrap_pheatmap(ph_list[[3]]) & panel_box_theme) +
       (wrap_pheatmap(ph_list[[4]]) & panel_box_theme)
   ) +
     plot_layout(ncol = 4) +
-    plot_annotation(tag_levels = "A")
-
-
+    plot_annotation(
+      tag_levels = list(c("A", "B", "C", ""))
+    )
   
   
   
@@ -1691,14 +1669,21 @@ make_cluster_and_heatmaps <- function(data_dir = processedRootRcommon,
   )
   
 
+  # combined_3 <- (
+  #     (wrap_pheatmap(error_heatmap) & panel_box_theme) + 
+  #     (wrap_pheatmap(sir_heatmap) & panel_box_theme)
+  # ) +
+  #   plot_layout(ncol = 2) +
+  #   plot_annotation(tag_levels = "A")
+    
   combined_3 <- (
-      (wrap_pheatmap(error_heatmap) & panel_box_theme) + 
+    (wrap_pheatmap(error_heatmap) & panel_box_theme) + 
       (wrap_pheatmap(sir_heatmap) & panel_box_theme)
   ) +
     plot_layout(ncol = 2) +
-    plot_annotation(tag_levels = "A")
-    
-  
+    plot_annotation(
+      tag_levels = list(c("", ""))
+    )
   
   
 
@@ -1741,7 +1726,7 @@ make_cluster_and_heatmaps <- function(data_dir = processedRootRcommon,
     caa = caa,
     decorate_fun = decorate_with_functional_group_presence,
     genotypeGroupTable = genotypeGroupTable,
-    label_map = c("darkred" = "ESBL carba", "orange" = "AMPC", "yellow" = "ESBL classic", "grey70" = "Non-ESBL")
+    label_map = c("darkred" = "ESBL carba", "orange" = "AmpC", "yellow" = "ESBL classic", "grey70" = "Non-ESBL")
   )
 
     
@@ -1830,6 +1815,14 @@ make_cluster_and_heatmaps <- function(data_dir = processedRootRcommon,
                   sir_heatmap_ordered_by_error)
   
   
+  # combined_4 <- (
+  #   (wrap_pheatmap(ph_list[[1]]) & panel_box_theme) +
+  #     (wrap_pheatmap(ph_list[[2]]) & panel_box_theme) +
+  #     (wrap_pheatmap(ph_list[[3]]) & panel_box_theme) +
+  #     (wrap_pheatmap(ph_list[[4]]) & panel_box_theme)
+  # ) +
+  #   plot_layout(ncol = 4) +
+  #   plot_annotation(tag_levels = "A")
   combined_4 <- (
     (wrap_pheatmap(ph_list[[1]]) & panel_box_theme) +
       (wrap_pheatmap(ph_list[[2]]) & panel_box_theme) +
@@ -1837,8 +1830,9 @@ make_cluster_and_heatmaps <- function(data_dir = processedRootRcommon,
       (wrap_pheatmap(ph_list[[4]]) & panel_box_theme)
   ) +
     plot_layout(ncol = 4) +
-    plot_annotation(tag_levels = "A")
-  
+    plot_annotation(
+      tag_levels = list(c("A", "B", "C", ""))
+    )
   
   
   caa <- caaBasic
@@ -1878,15 +1872,25 @@ make_cluster_and_heatmaps <- function(data_dir = processedRootRcommon,
   ph_list <- list(error_heatmap_allgenes,
                   sir_heatmap_ordered_by_error)
   
+  # combined_5 <- (
+  #   (wrap_pheatmap(ph_list[[1]]) & panel_box_theme) +
+  #     (wrap_pheatmap(ph_list[[2]]) & panel_box_theme) 
+  # ) +
+  #   plot_layout(ncol = 2) +
+  #   plot_layout(widths = c(3, 1)) +
+  #   plot_annotation(tag_levels = "A")
+  # 
   combined_5 <- (
     (wrap_pheatmap(ph_list[[1]]) & panel_box_theme) +
-      (wrap_pheatmap(ph_list[[2]]) & panel_box_theme) 
+      (wrap_pheatmap(ph_list[[2]]) & panel_box_theme)
   ) +
-    plot_layout(ncol = 2) +
-    plot_layout(widths = c(3, 1)) +
-    plot_annotation(tag_levels = "A")
-  
-  
+    plot_layout(
+      ncol = 2,
+      widths = c(3, 1)
+    ) +
+    plot_annotation(
+      tag_levels = list(c("", ""))
+    )
   
   
   list(
@@ -2001,7 +2005,7 @@ ALL <- function()
     filename = file.path(processedRootRcluster,
                          sprintf("predictionerror_sir%d.png",result$k)),
     plot = result$combined_predictionerror_sir,
-    width = 8,
+    width = 6,
     height = 8,
     dpi = 300
   ) 

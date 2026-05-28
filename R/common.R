@@ -48,12 +48,16 @@ assemblyDirectory <- paste(direRoot,assemblymethod,"assembly",sep="/")
 #amrfinderDatabase <- "231115.1"
 #amrfinderDatabase <- "2024-12-18.1"
 amrfinderDatabase <- "2026-01-21.1"
+#amrfinderDatabase <- "2026-05-15.1"
 amrfinderDirectory <- paste(direRoot,assemblymethod,"amrfinder",amrfinderDatabase,sep="/")
 
-aribaDirectory <- paste(direRoot,"Illumina","ariba",sep="/")
+#aribaDirectory <- paste(direRoot,"Illumina","ariba",sep="/")
+aribaResfinderDatabase <- "2026-03-09"
+#aribaResfinderDatabase <- "2026-05-25"
+aribaDirectory <- paste(direRoot,assemblymethod,"ariba",aribaResfinderDatabase,sep="/")
 
-resfinderDatabase <- "v460"
-resfinderDirectory <- paste(direRoot,assemblymethod,"resfinder",resfinderDatabase,sep="/")
+#resfinderDatabase <- "v460"
+#resfinderDirectory <- paste(direRoot,assemblymethod,"resfinder",resfinderDatabase,sep="/")
 
 qualityDirectory <- paste(direRoot,assemblymethod,"quality",sep="/")
 tygsDirectory <- paste(qualityDirectory,"TYGS",sep="/")
@@ -153,5 +157,101 @@ filter_and_drop <- function(df, col, values) {
     select(-!!col_quo)
 }
 
+run_with_log <- function(
+    calls,
+    log_file,
+    stop_on_error = FALSE,
+    append = FALSE
+) {
+  if (!is.list(calls)) {
+    stop("`calls` must be a named list of functions or expressions.")
+  }
+  
+  if (is.null(names(calls)) || any(names(calls) == "")) {
+    names(calls) <- paste0("step_", seq_along(calls))
+  }
+  
+  if (!append && file.exists(log_file)) {
+    file.remove(log_file)
+  }
+  
+  write_log <- function(...) {
+    cat(..., file = log_file, append = TRUE, sep = "")
+  }
+  
+  timestamp <- function() {
+    format(Sys.time(), "%Y-%m-%d %H:%M:%S")
+  }
+  
+  write_log(
+    "============================================================\n",
+    "LOG STARTED: ", timestamp(), "\n",
+    "============================================================\n\n"
+  )
+  
+  results <- vector("list", length(calls))
+  names(results) <- names(calls)
+  
+  for (nm in names(calls)) {
+    write_log(
+      "\n\n",
+      "============================================================\n",
+      "SECTION: ", nm, "\n",
+      "START:   ", timestamp(), "\n",
+      "============================================================\n\n"
+    )
+    
+    con <- file(log_file, open = "at")
+    sink(con, type = "output", split = FALSE)
+    sink(con, type = "message")
+    
+    result <- tryCatch(
+      {
+        if (is.function(calls[[nm]])) {
+          calls[[nm]]()
+        } else {
+          eval(calls[[nm]], envir = parent.frame())
+        }
+      },
+      error = function(e) {
+        message("ERROR: ", conditionMessage(e))
+        structure(list(error = e), class = "logged_error")
+      },
+      warning = function(w) {
+        message("WARNING: ", conditionMessage(w))
+        invokeRestart("muffleWarning")
+      }
+    )
+    
+    sink(type = "message")
+    sink(type = "output")
+    close(con)
+    
+    results[[nm]] <- result
+    
+    write_log(
+      "\n",
+      "------------------------------------------------------------\n",
+      "END: ", timestamp(), "\n",
+      "STATUS: ",
+      if (inherits(result, "logged_error")) "ERROR" else "OK",
+      "\n",
+      "------------------------------------------------------------\n"
+    )
+    
+    if (inherits(result, "logged_error") && stop_on_error) {
+      stop("Stopped after error in section: ", nm)
+    }
+  }
+  
+  write_log(
+    "\n\n",
+    "============================================================\n",
+    "LOG FINISHED: ", timestamp(), "\n",
+    "============================================================\n"
+  )
+  
+  invisible(results)
+}
 
 

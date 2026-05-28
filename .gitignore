@@ -62,3 +62,4 @@ tools/confindr/test_out/confindr_log.txt
 tools/install/silver_version_260525.log
 tools/install/version260525.txt
 tools/confindr/test_samples.tar.gz
+.Rproj.user

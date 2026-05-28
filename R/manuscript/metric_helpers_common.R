@@ -7,6 +7,17 @@ BASE_GROUP_COLS <- c("noinputab", "antibiotic", "significanceLevel", "sample", "
 FRAC_COLS <- c("correct","ME","VME")
 RATE_COLS <- c("ME","VME")
 
+SIGNIFICANCE_LEVELS <- c("STD", "10%", "5%", "2.5%")
+CONFIDENCE_LEVELS <- c("STD", "90%", "95%", "97.5%")
+
+ANTIBIOTICS_LEVELS <- c("AMP","AMC","PIP","TZP","CAZ","CRO","CTX","FEP","CIP","OFX","LVX","MFX","GEN","TOB")
+NO_INPUT_LEVELS <- c("4","5","6","7","8")
+METRIC_LEVELS = c("correct", "ME", "VME")
+AB_GROUPS_LEVELS = AB_GROUPS
+
+
+
+
 
 makeWide <- function(metrics_long, which_metric) {
   library(dplyr)
@@ -299,13 +310,6 @@ compute_metrics_unambiguous_long_counts <- function(
 
 
 
-SIGNIFICANCE_LEVELS <- c("STD", "10%", "5%", "2.5%")
-ANTIBIOTICS_LEVELS <- c("AMP","AMC","PIP","TZP","CAZ","CRO","CTX","FEP","CIP","OFX","LVX","MFX","GEN","TOB")
-NO_INPUT_LEVELS <- c("4","5","6","7","8")
-METRIC_LEVELS = c("correct", "ME", "VME")
-AB_GROUPS_LEVELS = AB_GROUPS
-
-
 
 
 convertSignificanceLevelForPresentation <- function(df) {
@@ -424,4 +428,56 @@ EXAMPLE_UANMBIGOUS <- function()
   aaa %>% filter_and_drop(significanceLevel,NA) %>% filter_and_drop(metric,c("VME"))
 
 }
+
+fetchPredictionErrors <- function()
+{
+  
+  metrics_long_ab <- derivedMetricsFrame(countFrameWide = readCountSampleFrameWide(),vars = SAMPLE_GROUPS_VAR)
+  
+  errors <- metrics_long_ab %>% 
+    filter_and_drop(mode,MODE_A) %>% 
+    filter_and_drop(cpmode,"normal") %>%
+    filter_and_drop(significanceLevel,"STD") %>%
+    filter_and_drop(noinputab,6) %>%
+    filter(metric %in% c("ME","VME"))
+  
+  error_matrix <- errors %>%
+    pivot_wider(
+      names_from = metric,
+      values_from = value
+    ) %>%
+    mutate(
+      n_na = rowSums(is.na(across(c(ME, VME))))
+    ) %>%
+    {
+      if (any(.$n_na != 1)) {
+        stop("Sanity check failed: each sample-antibiotic pair must have exactly one NA among ME and VME")
+      }
+      .
+    } %>%
+    mutate(
+      combined = if_else(!is.na(ME), ME, -VME)
+    ) %>%
+    select(sample, antibiotic, combined) %>%
+    mutate(
+      antibiotic = factor(antibiotic, levels = ANTIBIOTICS)
+    ) %>%
+    complete(sample, antibiotic = factor(ANTIBIOTICS, levels = ANTIBIOTICS)) %>%
+    pivot_wider(
+      names_from = antibiotic,
+      values_from = combined
+    ) %>%
+    arrange(sample) %>%
+    as.data.frame()
+  
+  rownames(error_matrix) <- error_matrix$sample
+  error_matrix$sample <- NULL
+  
+  error_matrix <- error_matrix[, ANTIBIOTICS]
+  
+  stopifnot(all(colnames(error_matrix) == ANTIBIOTICS))
+  error_matrix
+}
+
+
 

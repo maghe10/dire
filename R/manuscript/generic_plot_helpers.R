@@ -239,7 +239,9 @@ plot_grouped_bars <- function(df,
                               names_to = "group",
                               values_to = "share",
                               id_levels = NULL,
+                              id_labels = id_levels,
                               group_levels = NULL,
+                              group_labels = group_levels,
                               y_label = "Unambiguous correct predictions",
                               legend_title = "Number of input antibiotics",
                               y_limits = c(0, 1),
@@ -279,6 +281,10 @@ plot_grouped_bars <- function(df,
   group_levs <- levels(long[[names_to]])
   cols <- setNames(greens_ramp(length(group_levs)), group_levs)
   
+  breaks_use <- group_levs
+  labels_use <- if (!is.null(group_labels)) group_labels else group_levs
+  
+  
   y_labeller <- if (isTRUE(y_as_percent)) {
     scales::percent_format(accuracy = y_accuracy)
   } else {
@@ -294,12 +300,25 @@ plot_grouped_bars <- function(df,
       position = ggplot2::position_dodge(width = dodge_width),
       width = bar_width
     ) +
+    ggplot2::scale_x_discrete(labels = id_labels) +
     ggplot2::scale_y_continuous(
       labels = y_labeller,
       expand = ggplot2::expansion(mult = c(0, 0.02))
     ) +
     ggplot2::coord_cartesian(ylim = y_limits) +
-    ggplot2::scale_fill_manual(values = cols, name = legend_title) +
+    #ggplot2::scale_fill_manual(values = cols, name = legend_title) +
+    # ggplot2::scale_fill_manual(
+    #   values = cols,
+    #   breaks = group_levels,
+    #   labels = group_labels,
+    #   name = legend_title
+    # ) +
+    ggplot2::scale_fill_manual(
+      values = cols,
+      breaks = breaks_use,
+      labels = labels_use,
+      name = legend_title
+    ) +
     ggplot2::labs(x = NULL, y = y_label, tag = tag) +
     theme_manuscript(base_size = base_size)
   
