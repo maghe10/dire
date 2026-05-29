@@ -111,6 +111,7 @@ def trimgalore(sample, raw_dir, work_dir, storage, threads, force, env):
     run(
         conda_cmd(env, [
             "trim_galore",
+            "--fastqc",
             "--paired",
             "--cores", str(threads),
             "-o", work_out,
