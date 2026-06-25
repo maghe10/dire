@@ -47,13 +47,13 @@ assemblymethod <- 'spades_standard'
 assemblyDirectory <- paste(direRoot,assemblymethod,"assembly",sep="/")
 #amrfinderDatabase <- "231115.1"
 #amrfinderDatabase <- "2024-12-18.1"
-amrfinderDatabase <- "2026-01-21.1"
-#amrfinderDatabase <- "2026-05-15.1"
+#amrfinderDatabase <- "2026-01-21.1"
+amrfinderDatabase <- "2026-05-15.1"
 amrfinderDirectory <- paste(direRoot,assemblymethod,"amrfinder",amrfinderDatabase,sep="/")
 
 #aribaDirectory <- paste(direRoot,"Illumina","ariba",sep="/")
-aribaResfinderDatabase <- "2026-03-09"
-#aribaResfinderDatabase <- "2026-05-25"
+#aribaResfinderDatabase <- "2026-03-09"
+aribaResfinderDatabase <- "2026-05-25"
 aribaDirectory <- paste(direRoot,assemblymethod,"ariba",aribaResfinderDatabase,sep="/")
 
 #resfinderDatabase <- "v460"

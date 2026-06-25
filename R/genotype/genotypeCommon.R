@@ -23,9 +23,6 @@ getGenotypeGroupTable <-function()
 }
 
 
-
-
-
 getGeneMappingTable <-function()
 {
   aFile <- file.path(processedRootRassembly,"genotype","resolved_amr_genes_manuscript_table.csv")

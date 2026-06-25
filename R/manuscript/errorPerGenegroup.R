@@ -14,8 +14,6 @@ outdirPlot <- file.path(outdir, "plot")
 dir.create(outdirPlot, recursive = TRUE, showWarnings = FALSE)
 
 
-
-
 clean_token <- function(x) {
   x %>%
     stringr::str_trim() %>%
@@ -72,7 +70,6 @@ make_property_table <- function(genotype_tbl, col, summariser) {
 # ============================================================
 # Forest plot: mean MAE difference with confidence intervals
 # ============================================================
-
 plot_ttest_forest <- function(ttest_tbl,
                               p_adjust_col = "p_adjust_fdr",
                               diff_col = "difference_present_minus_absent",
@@ -82,6 +79,18 @@ plot_ttest_forest <- function(ttest_tbl,
                               significance_cutoff = 0.05,
                               base_size = 11) {
   
+  resistance_group_order <- c(
+    "ESBL carba",
+    "AmpC",
+    "ESBL classic",
+    "Non-ESBL",
+    "PMQR",
+    "QRDR",
+    "APH",
+    "AAD/ANT",
+    "AAC"
+  )
+  
   plot_tbl <- ttest_tbl %>%
     mutate(
       significant = !is.na(.data[[p_adjust_col]]) &
@@ -89,22 +98,36 @@ plot_ttest_forest <- function(ttest_tbl,
       has_ci =
         !is.na(.data[[conf_low_col]]) &
         !is.na(.data[[conf_high_col]]),
-      has_difference = !is.na(.data[[diff_col]])
-    ) %>%
-    filter(has_difference) %>%
-    arrange(.data[[diff_col]]) %>%
-    mutate(
+      has_difference = !is.na(.data[[diff_col]]),
       family_ordered = factor(
         .data[[family_col]],
-        levels = unique(.data[[family_col]])
+        levels = rev(resistance_group_order)
       )
-    )
+    ) %>%
+    filter(has_difference) %>%
+    arrange(family_ordered)
   
   ci_tbl <- plot_tbl %>%
     filter(has_ci)
   
   no_ci_tbl <- plot_tbl %>%
     filter(!has_ci)
+  
+  label_expr <- function(x) {
+    parsed_labels <- list(
+      "ESBL carba"   = expression(bolditalic("ESBL carba"))[[1]],
+      "AmpC"         = expression(bolditalic("AmpC"))[[1]],
+      "ESBL classic" = expression(bolditalic("ESBL classic"))[[1]],
+      "Non-ESBL"     = expression(bolditalic("Non-ESBL"))[[1]],
+      "PMQR"         = expression(italic("PMQR"))[[1]],
+      "QRDR"         = expression(italic("QRDR"))[[1]],
+      "APH"          = expression(bold("APH"))[[1]],
+      "AAD/ANT"      = expression(bold("AAD/ANT"))[[1]],
+      "AAC"          = expression(bold("AAC"))[[1]]
+    )
+    
+    as.expression(parsed_labels[x])
+  }
   
   ggplot(
     plot_tbl,
@@ -147,12 +170,24 @@ plot_ttest_forest <- function(ttest_tbl,
       ),
       guide = "none"
     ) +
+    scale_y_discrete(
+      labels = label_expr,
+      drop = FALSE
+    ) +
     labs(
-      x = "Difference in mean absolute error\n(Present − Absent)",
+      x = "Difference in mean absolute error\n(Present \u2212 Absent)",
       y = NULL
     ) +
-    theme_manuscript(base_size = base_size)
+    theme_manuscript(base_size = base_size) +
+    theme(
+      axis.text.y = element_text(
+        hjust = 0,
+        margin = margin(r = 8)
+      ),
+      axis.ticks.y = element_blank()
+    )
 }
+
 
 
 ALL <- function()
@@ -341,6 +376,34 @@ ALL <- function()
   readr::write_csv2(ttest_results, file.path(outdir, "welch_ttests_present_absent.csv"))
   readr::write_csv2(sanity_check, file.path(outdir, "sanity_check_weighted_means.csv"))
   
+  
+  resistance_group_order <- c(
+    "ESBL carba",
+    "AmpC",
+    "ESBL classic",
+    "Non-ESBL",
+    "PMQR",
+    "QRDR",
+    "APH",
+    "AAD/ANT",
+    "AAC"
+  )
+  
+  mae_property_long <- mae_property_long %>%
+    mutate(
+      property = factor(property, levels = resistance_group_order)
+    )
+  
+  mae_property_summary <- mae_property_summary %>%
+    mutate(
+      property = factor(property, levels = resistance_group_order)
+    )
+  
+  ttest_results <- ttest_results %>%
+    mutate(
+      property = factor(property, levels = resistance_group_order)
+    )
+  
   if (requireNamespace("writexl", quietly = TRUE)) {
     writexl::write_xlsx(
       list(
@@ -356,6 +419,8 @@ ALL <- function()
     )
   }
   
+  
+  
   p_box <- ggplot(
     mae_property_long,
     aes(
@@ -365,15 +430,20 @@ ALL <- function()
   ) +
     geom_boxplot(outlier.shape = NA) +
     geom_jitter(width = 0.12, alpha = 0.55, size = 1.5) +
-    facet_wrap(~ property, scales = "free_x") +
+    facet_wrap(
+      ~ property,
+      scales = "free_x",
+      ncol = 3
+    ) +
     labs(
       x = NULL,
-      y = "Mean absolute prediction error"
+      y = "Mean absolute error"
     ) +
     theme_manuscript(base_size = 11) +
     theme(
       strip.text = element_text(face = "bold")
     )
+  
   
   p_mean <- ggplot(
     mae_property_summary,
@@ -383,10 +453,14 @@ ALL <- function()
     )
   ) +
     geom_col(width = 0.7) +
-    facet_wrap(~ property, scales = "free_x") +
+    facet_wrap(
+      ~ property,
+      scales = "free_x",
+      ncol = 3
+    ) +
     labs(
       x = NULL,
-      y = "Mean absolute prediction error"
+      y = "Mean absolute error"
     ) +
     theme_manuscript(base_size = 11) +
     theme(
@@ -398,7 +472,7 @@ ALL <- function()
     p_box,
     width = 12,
     height = 7,
-    dpi = 300
+    dpi = 600
   )
   
   ggsave(
@@ -406,7 +480,7 @@ ALL <- function()
     p_mean,
     width = 12,
     height = 7,
-    dpi = 300
+    dpi = 600
   )
   
   print(mae_property_wide)
@@ -424,9 +498,9 @@ ALL <- function()
   ggsave(
     file.path(outdirPlot, "ttest_difference_forest_plot.png"),
     p_forest,
-    width = 8,
-    height = 5,
-    dpi = 300
+    width = 6,
+    height = 8,
+    dpi = 600
   )
   
   

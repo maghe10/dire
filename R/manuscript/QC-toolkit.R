@@ -119,7 +119,7 @@ qc_save_plot <- function(plot, filename, width = 7, height = 9) {
     width = width,
     height = height,
     units = "in",
-    dpi = 300
+    dpi = 600
   )
   invisible(plot)
 }

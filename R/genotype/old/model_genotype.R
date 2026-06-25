@@ -103,7 +103,7 @@ save_plot <- function(plot_obj, filename, width = 7, height = 5) {
     plot = plot_obj,
     width = width,
     height = height,
-    dpi = 300
+    dpi = 600
   )
 }
 

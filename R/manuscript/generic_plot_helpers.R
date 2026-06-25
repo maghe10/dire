@@ -37,7 +37,7 @@ export_plot_bundle <- function(plot,
                                file_stub,
                                width = 6.5,
                                height = 4,
-                               dpi = 300,
+                               dpi = 600,
                                export = TRUE) {
   if (!isTRUE(export)) return(invisible(NULL))
   if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
@@ -231,6 +231,52 @@ combine_tagged <- function(...,
 #   export_plot_bundle(p, df, out_dir, file_stub, width, height, export = export)
 #   p
 # }
+make_two_panel_png <- function(file_a, file_b, output_file,
+                               label_a = "A", label_b = "B",
+                               stack = FALSE) {
+  stopifnot(file.exists(file_a))
+  stopifnot(file.exists(file_b))
+  
+  img_a <- image_read(file_a)
+  img_b <- image_read(file_b)
+  
+  # Make panels same width if stacked, same height if side-by-side
+  info_a <- image_info(img_a)
+  info_b <- image_info(img_b)
+  
+  if (stack) {
+    target_width <- max(info_a$width, info_b$width)
+    img_a <- image_extent(img_a, paste0(target_width, "x", info_a$height), gravity = "center", color = "white")
+    img_b <- image_extent(img_b, paste0(target_width, "x", info_b$height), gravity = "center", color = "white")
+  } else {
+    target_height <- max(info_a$height, info_b$height)
+    img_a <- image_extent(img_a, paste0(info_a$width, "x", target_height), gravity = "center", color = "white")
+    img_b <- image_extent(img_b, paste0(info_b$width, "x", target_height), gravity = "center", color = "white")
+  }
+  
+  img_a <- image_annotate(
+    img_a, label_a,
+    size = 117, # pixels <- font * dpi / 72
+    gravity = "northwest",
+    location = "+30+20",
+    weight = 700,
+    color = "black"
+  )
+  
+  img_b <- image_annotate(
+    img_b, label_b,
+    size = 117,
+    gravity = "northwest",
+    location = "+30+20",
+    weight = 700,
+    color = "black"
+  )
+  
+  combined <- image_append(c(img_a, img_b), stack = stack)
+  
+  image_write(combined, output_file)
+}
+
 
 
 plot_grouped_bars <- function(df,
@@ -547,7 +593,7 @@ export_patchwork <- function(patch,
                              file_stub = "figure_AB",
                              width = 13,
                              height = 4,
-                             dpi = 300,
+                             dpi = 600,
                              bg = "white",
                              export = TRUE) {
   if (!isTRUE(export)) return(invisible(NULL))
@@ -897,7 +943,7 @@ example_faceted_by_antibiotic_metrics_vs_index <- function(export = FALSE,
     
     # Size suggestion for 14 facets; adjust if you change ncol
     ggplot2::ggsave(file.path(out_dir, paste0(file_stub, ".png")),
-                    p, width = 12, height = 8, dpi = 300, bg = "white")
+                    p, width = 12, height = 8, dpi = 600, bg = "white")
     ggplot2::ggsave(file.path(out_dir, paste0(file_stub, ".svg")),
                     p, width = 12, height = 8, bg = "white")
   }
@@ -1027,7 +1073,7 @@ example_patchwork_fig7AB <- function(export = FALSE,
     if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
     
     ggplot2::ggsave(file.path(out_dir, paste0(file_stub, ".png")),
-                    pAB, width = 17.3, height = 5.2, dpi = 300, bg = "white")
+                    pAB, width = 17.3, height = 5.2, dpi = 600, bg = "white")
     ggplot2::ggsave(file.path(out_dir, paste0(file_stub, ".svg")),
                     pAB, width = 17.3, height = 5.2, bg = "white")
   }

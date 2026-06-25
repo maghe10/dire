@@ -74,7 +74,7 @@ plotHardMismatchSUR <- function(
       plot = plot,
       width = width,
       height = height,
-      dpi = 300
+      dpi = 600
     )
   }
   

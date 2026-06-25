@@ -18,7 +18,7 @@
 # TODO. More heatmaps. 
 #source(file = 'clear.R')
 #source(file = 'phenotype/generate_cluster_and_heatmap-kopia.R')
-ALL()
+#ALL()
 
 # @deprecated use manuscript/manuscript_figures.R
 # source(file = 'clear.R')

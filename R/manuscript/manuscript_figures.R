@@ -1,8 +1,9 @@
 source(file = 'manuscript/plotStatisticsTables_common.R')
+library(magick)
 
 
 
-
+dir.create(manuscriptPlotDirectory, recursive = TRUE, showWarnings = FALSE)
 
 
 CLUSTER_PNG_OUTPUT_DIR <- paste(processedRootR,"cluster","png",sep="/")
@@ -26,6 +27,10 @@ percentages_unambiguous_results_y_legend <- "Unambiguous prediction results"
 metric_level_labels <- c("Correct",
                       "Major error",
                       "Very major error")
+
+
+
+
 
 
 plot_one_metric_grouped <- function(metrics_filtered,
@@ -123,7 +128,7 @@ plot_metric_panels_grouped <- function(metrics_long,
       file_stub = fig_stub,
       width = 13,
       height = 8,
-      dpi = 300,
+      dpi = 600,
       export = TRUE
     )
   }
@@ -303,6 +308,11 @@ plotAntibioticsMetricsVsSignificanceLevelSixBest <- function(tag) {
   #metrics_long_ab <- derivedMetricsFrame("sixbest")
   column_labels = setNames(CONFIDENCE_LEVELS, SIGNIFICANCE_LEVELS)
   
+  predicted_antibiotics <- unique(metrics_long_ab$antibiotic)
+  
+  predicted_antibiotics_ordered <- ANTIBIOTICS_LEVELS[ANTIBIOTICS_LEVELS %in% predicted_antibiotics]
+  
+  #mean(metrics_long_ab[metrics_long_ab$metric == "MCC",]$value,na.rm = TRUE)
   plot_metric_panels_grouped(
     metrics_long = metrics_long_ab,
     metric_defs  = PERFORMANCE_METRICS_DEFS,
@@ -325,7 +335,7 @@ plotAntibioticsMetricsVsSignificanceLevelSixBest <- function(tag) {
     legend_title = significance_level_legend_title,
     column_levels = SIGNIFICANCE_LEVELS,   # if your helper supports this, set it too
     column_labels =  column_labels,
-    id_levels = ANTIBIOTICS_LEVELS
+    id_levels = predicted_antibiotics_ordered
   )
 }
 
@@ -765,7 +775,7 @@ plot_sir_distribution <- function(sir_wide,
     )
   
   if (!is.null(out_file)) {
-    ggsave(out_file, p, width = width, height = height, dpi = 300)
+    ggsave(out_file, p, width = width, height = height, dpi = 600)
   }
   
   p
@@ -876,7 +886,7 @@ plotPatientsAndSamples <- function(tag)
 {
   p <- make_included_vs_estimated_plot()
   ggsave(file.path(manuscriptPlotDirectory,sprintf("Figure_%s.png",tag))
-                       , p, width = 13, height = 8, dpi = 300)
+                       , p, width = 13, height = 8, dpi = 600)
 }
 
 
@@ -924,12 +934,48 @@ ALL_PEK_FIGURES <- function()
   # Antibiotic level VME/ME/MCC/F1 rates. Non-conformal. 4 to 8 antibiotics.
   plotAntibioticsMetricsVsNoinputAb(pekString(n))
   n <- n + 1
-
-  # HeatMapErrorSir 
-  file <- paste(processedRootRcluster,"predictionerror_sir6.png",sep="/")
-  stopifnot(file.exists(file))
-  file.copy(from = file, to = paste(manuscriptPlotDirectory,pekFigure(n),sep = "/"),overwrite = TRUE)
-
+  
+  
+  # Figure 6, panel A: HeatMapErrorSir
+  file_a <- paste(processedRootRcluster, "predictionerror_sir6.png", sep = "/")
+  stopifnot(file.exists(file_a))
+  
+  # Figure 6, panel B: Abs mean errors
+  file_b <- paste(
+    manuscriptDirectory,
+    "error_vs_genotype",
+    "plot",
+    "ttest_difference_forest_plot.png",
+    sep = "/"
+  )
+  stopifnot(file.exists(file_b))
+  
+  output_file <- paste(manuscriptPlotDirectory, pekFigure(n), sep = "/")
+  
+  make_two_panel_png(
+    file_a = file_a,
+    file_b = file_b,
+    output_file = output_file,
+    label_a = "A",
+    label_b = "B",
+    stack = FALSE
+  )
+  
+# 
+#   # HeatMapErrorSir 
+#   file <- paste(processedRootRcluster,"predictionerror_sir6.png",sep="/")
+#   stopifnot(file.exists(file))
+#   file.copy(from = file, to = paste(manuscriptPlotDirectory,pekFigure(n),sep = "/"),overwrite = TRUE)
+# 
+#   n <- n + 1
+#   
+#   # Abs mean errors 
+#   file <- paste(manuscriptDirectory,"error_vs_genotype","plot", "ttest_difference_forest_plot.png",sep="/")
+#   stopifnot(file.exists(file))
+#   file.copy(from = file, to = paste(manuscriptPlotDirectory,suppFigure(n),sep = "/"),overwrite = TRUE)
+#   n <- n + 1
+#   
+  
 
   suppString <- function(n){
     sprintf("S%d",n)
@@ -993,25 +1039,47 @@ ALL_PEK_FIGURES <- function()
   n <- n + 1
 
   ################### prediction error vs genotype ####################
-  file <- paste(processedRootRcluster,"predictionerror_genotype_aggregated_sir6.png",sep="/")
-  stopifnot(file.exists(file))
-  file.copy(from = file, to = paste(manuscriptPlotDirectory,suppFigure(n),sep = "/"),overwrite = TRUE)
+  # file <- paste(processedRootRcluster,"predictionerror_genotype_aggregated_sir6.png",sep="/")
+  # stopifnot(file.exists(file))
+  # file.copy(from = file, to = paste(manuscriptPlotDirectory,suppFigure(n),sep = "/"),overwrite = TRUE)
+  # n <- n + 1
+  # 
+  # file <- paste(processedRootRcluster,"predictionerror_genotype_sir6.png",sep="/")
+  # stopifnot(file.exists(file))
+  # file.copy(from = file, to = paste(manuscriptPlotDirectory,suppFigure(n),sep = "/"),overwrite = TRUE)
+  # n <- n + 1
+
+  # Supplementary Figure: prediction errors ordered by error + mean absolute error by property
+  file_a <- paste(processedRootRcluster, "sir_heatmap_ordered_by_error6.png", sep = "/")
+  stopifnot(file.exists(file_a))
+  
+  file_b <- paste(
+    manuscriptDirectory,
+    "error_vs_genotype",
+    "plot",
+    "boxplot_mean_abs_error_by_property.png",
+    sep = "/"
+  )
+  stopifnot(file.exists(file_b))
+  
+  output_file <- paste(manuscriptPlotDirectory, suppFigure(n), sep = "/")
+  
+  make_two_panel_png(
+    file_a = file_a,
+    file_b = file_b,
+    output_file = output_file,
+    label_a = "A",
+    label_b = "B",
+    stack = FALSE
+  )
+  
   n <- n + 1
   
-  file <- paste(processedRootRcluster,"predictionerror_genotype_sir6.png",sep="/")
-  stopifnot(file.exists(file))
-  file.copy(from = file, to = paste(manuscriptPlotDirectory,suppFigure(n),sep = "/"),overwrite = TRUE)
-  n <- n + 1
-  
-  file <- paste(manuscriptDirectory,"error_vs_genotype","plot", "boxplot_mean_abs_error_by_property.png",sep="/")
-  stopifnot(file.exists(file))
-  file.copy(from = file, to = paste(manuscriptPlotDirectory,suppFigure(n),sep = "/"),overwrite = TRUE)
-  n <- n + 1
-  
-  file <- paste(manuscriptDirectory,"error_vs_genotype","plot", "ttest_difference_forest_plot.png",sep="/")
-  stopifnot(file.exists(file))
-  file.copy(from = file, to = paste(manuscriptPlotDirectory,suppFigure(n),sep = "/"),overwrite = TRUE)
-  n <- n + 1
+
+  # file <- paste(manuscriptDirectory,"error_vs_genotype","plot", "ttest_difference_forest_plot.png",sep="/")
+  # stopifnot(file.exists(file))
+  # file.copy(from = file, to = paste(manuscriptPlotDirectory,suppFigure(n),sep = "/"),overwrite = TRUE)
+  # n <- n + 1
   
     
   ########## Extra figure that might be reintroduces

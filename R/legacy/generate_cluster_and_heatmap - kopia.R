@@ -63,7 +63,7 @@ export_plot_bundle_no_excel <- function(plot,
                                         file_stub,
                                         width = 6.5,
                                         height = 4,
-                                        dpi = 300,
+                                        dpi = 600,
                                         export = TRUE) {
   if (!isTRUE(export)) return(invisible(NULL))
   if (!dir.exists(PNG_OUTPUT_DIR)) dir.create(PNG_OUTPUT_DIR, recursive = TRUE)

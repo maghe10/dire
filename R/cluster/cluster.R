@@ -23,7 +23,7 @@ BETA_LACTAMS <- c("AMP", "AMC", "PIP", "TZP", "CAZ", "CRO", "CTX", "FEP")
 
 cluster_palette <- function(n) {
   base <- c("blue", "green", "purple",
-            "pink", "brown", "cyan","black")
+            "yellow", "brown", "cyan","black")
   setNames(base[seq_len(n)], as.character(seq_len(n)))
 }
 
@@ -861,7 +861,7 @@ decorate_with_mean_absolute_error <- function(
     caa,
     error_tbl,
     cols = colnames(error_tbl),
-    label = "Mean error rate"
+    label = "Mean absolute error"
 ) {
   x <- error_tbl[rownames(caa$annotation), cols, drop = FALSE]
   
@@ -1228,7 +1228,7 @@ make_pheatmap <- function(mat,
                           display_numbers = NULL,
                           fontsize_row = 4,
                           fontsize_col = 7,
-                          fontsize_number = 6,
+                          fontsize_number = 9,
                           fontsize = 7,
                           clustering_callback = NULL,
                           annotation_names_row = TRUE,
@@ -1389,7 +1389,9 @@ make_cluster_and_heatmaps <- function(data_dir = processedRootRcommon,
 
   
   display_numbers <- matrix(
-    ifelse(as.matrix(atu_tbl), "\u2217", ""),
+    ifelse(as.matrix(atu_tbl), "\u2217", ""),  #Asterisk-ish
+#    ifelse(as.matrix(atu_tbl), "\u25CF", ""), #Bullet
+
     nrow = nrow(atu_tbl),
     dimnames = dimnames(atu_tbl)
   )
@@ -1578,7 +1580,7 @@ make_cluster_and_heatmaps <- function(data_dir = processedRootRcommon,
     mat = primary[row_order, beta_cols, drop = FALSE], 
     annotation_row = caa$annotation,
     annotation_colors = caa$annotation_colors,
-    color = gradient_green_yellow_red(),
+    color = rev(gradient_red()),
     cluster_rows = FALSE,
     cluster_cols = FALSE,
     legend = TRUE,
@@ -1594,7 +1596,7 @@ make_cluster_and_heatmaps <- function(data_dir = processedRootRcommon,
     mat = primary[row_order, ag_cols, drop = FALSE],
     annotation_row = caa$annotation,
     annotation_colors = caa$annotation_colors,
-    color = gradient_green_yellow_red(),
+    color = rev(gradient_red()),
     cluster_rows = FALSE,
     cluster_cols = FALSE,
     legend = TRUE,
@@ -1614,7 +1616,7 @@ make_cluster_and_heatmaps <- function(data_dir = processedRootRcommon,
     mat = primary[row_order, quinolones_cols, drop = FALSE],
     annotation_row = caa$annotation,
     annotation_colors = caa$annotation_colors,
-    color = gradient_green_yellow_red(),
+    color = rev(gradient_red()),
     cluster_rows = FALSE,
     cluster_cols = FALSE,
     legend = TRUE,
@@ -1902,6 +1904,7 @@ make_cluster_and_heatmaps <- function(data_dir = processedRootRcommon,
     cluster_plot = cluster_plot,
     primary_heatmap = primary_heatmap,
     sir_heatmap = sir_heatmap,
+    sir_heatmap_ordered_by_error = sir_heatmap_ordered_by_error,
     combined_phenotype_cluster_primary_sir = combined_1,
     combined_genotype_aggregated_sir = combined_2A,
     combined_genotype_sir = combined_2B,
@@ -1979,7 +1982,7 @@ ALL <- function()
     plot = result$combined_phenotype_cluster_primary_sir,
     width = 13,
     height = 8,
-    dpi = 300
+    dpi = 600
   )
   print(result$combined_phenotype_cluster_primary_sir)
   
@@ -1989,7 +1992,7 @@ ALL <- function()
     plot = result$combined_genotype_aggregated_sir,
     width = 13,
     height = 8,
-    dpi = 300
+    dpi = 600
   )
   
   ggplot2::ggsave(
@@ -1998,7 +2001,7 @@ ALL <- function()
     plot = result$combined_genotype_sir,
     width = 15,
     height = 8,
-    dpi = 300
+    dpi = 600
   )
   
   ggplot2::ggsave(
@@ -2007,16 +2010,26 @@ ALL <- function()
     plot = result$combined_predictionerror_sir,
     width = 6,
     height = 8,
-    dpi = 300
+    dpi = 600
   ) 
-  
+
+  ggplot2::ggsave(
+    filename = file.path(processedRootRcluster,
+                         sprintf("sir_heatmap_ordered_by_error%d.png",result$k)),
+    plot = result$sir_heatmap_ordered_by_error,
+    width = 4,
+    height = 8,
+    dpi = 600
+  ) 
+
+    
   ggplot2::ggsave(
     filename = file.path(processedRootRcluster,
                          sprintf("predictionerror_genotype_aggregated_sir%d.png",result$k)),
     plot = result$combined_predictionerror_genotype_aggregated_sir,
     width = 13,
     height = 8,
-    dpi = 300
+    dpi = 600
   ) 
   ggplot2::ggsave(
     filename = file.path(processedRootRcluster,
@@ -2024,7 +2037,7 @@ ALL <- function()
     plot = result$combined_predictionerror_genotype_sir,
     width = 13,
     height = 8,
-    dpi = 300
+    dpi = 600
   ) 
   
 }

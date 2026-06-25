@@ -22,7 +22,10 @@ main_pkgs <- c(
   "janitor",
   "httr2",
   "uwot",
-  "pvclust"
+  "pvclust",
+  "vegan",
+  "ape",
+  "magick"
 )
 
 # Dependencies (for reference only)
