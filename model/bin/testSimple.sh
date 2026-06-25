@@ -1,1 +1,0 @@
-python ./runmodel.py --number_of_choices 14 --significant_level 0.10 --output_folder output --load_sir_csvfile "sirAntibioticsModelWordsNoDate_Mode-C.csv"

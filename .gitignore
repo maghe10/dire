@@ -81,3 +81,5 @@ tools/bin/OneDrive.gaps.base_patterns.csv
 tools/bin/tmpz_5ot9pl/core.full.aln
 tools/install/dire_snp_tree.yml
 tools/bin/run_core_snp_tree_from_assemblies.py
+/tools/bin/removed
+/model/bin/removed
