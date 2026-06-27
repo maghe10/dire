@@ -8,19 +8,19 @@ import sys
 
 
 BATCHES = {
-    "A": ["2","3","4","5","6","8"],
-    "B": ["9","11","12","13","14","18","19","22"],
-    "C": ["24","25","26","28","29","34","35","36"],
-    "D": ["39","40","43","44","45","47","48","50"],
-    "E": ["51","52","56","57","59","61","62","64"],
-    "F": ["66","67","69","70","72","76","80","82"],
-    "G": ["83","84","86","87","88","89","91","93"],
-    "H": ["94","96","97","98","101","102","103","105"],
-    "I": ["109","111","112","113","120"],
-    "J": ["17","20","23","27","32","37","38","41","46"],
-    "K": ["49","53","54","58","75","95","100","115","116"],
-    "L": ["21","63","77","78","114"],
-    "M": ["121","122","123","124","55B","60B","65B","79B","85B","110B"],
+    "A": ["002", "003", "004", "005", "006", "008"],
+    "B": ["009", "011", "012", "013", "018", "019", "022"],
+    "C": ["024", "025", "026", "028", "029", "034", "035", "036"],
+    "D": ["039", "040", "043", "044", "045", "047", "048", "050"],
+    "E": ["051", "052", "056", "057", "059", "061", "062", "064"],
+    "F": ["066", "067", "069", "070", "072", "076", "080", "082"],
+    "G": ["083", "084", "086", "087", "088", "089", "091", "093"],
+    "H": ["094", "096", "097", "098", "101", "102", "103", "105"],
+    "I": ["109", "111", "112", "113", "120"],
+    "J": ["017", "020", "023", "027", "032", "037", "041", "046"],
+    "K": ["049", "053", "054", "058", "075", "095", "100", "115", "116"],
+    "L": ["021", "063", "077", "078", "114"],
+    "M": ["055", "060", "065", "079", "085", "110", "121", "122", "123", "124"],
     "N": ["125"],
 }
 
@@ -93,8 +93,8 @@ def trimgalore(sample, raw_dir, work_dir, storage, threads, force, env):
     work_out = work_dir / "trimmed" / f"sample{sample}"
     storage_out = storage / "trimmed" / f"sample{sample}"
 
-    expected_r1 = work_out / f"sample{sample}_1_val_1.fq.gz"
-    expected_r2 = work_out / f"sample{sample}_2_val_2.fq.gz"
+    expected_r1 = work_out / f"sample{sample}_val_1.fq.gz"
+    expected_r2 = work_out / f"sample{sample}_val_2.fq.gz"
 
     if not force and is_nonempty_file(expected_r1) and is_nonempty_file(expected_r2):
         print(f"Skipping Trim Galore: intermediate output already exists for sample{sample}")
@@ -102,8 +102,8 @@ def trimgalore(sample, raw_dir, work_dir, storage, threads, force, env):
 
     work_out.mkdir(parents=True, exist_ok=True)
 
-    r1 = raw_dir / f"sample{sample}_1.fastq.gz"
-    r2 = raw_dir / f"sample{sample}_2.fastq.gz"
+    r1 = raw_dir / f"DIRE_EC_{sample}_R1.fastq.gz"
+    r2 = raw_dir / f"DIRE_EC_{sample}_R2.fastq.gz"
 
     require_file(r1)
     require_file(r2)
@@ -114,6 +114,7 @@ def trimgalore(sample, raw_dir, work_dir, storage, threads, force, env):
             "--fastqc",
             "--paired",
             "--cores", str(threads),
+            "--basename", f"sample{sample}",
             "-o", work_out,
             r1, r2,
         ]),
@@ -136,8 +137,8 @@ def spades(sample, trimmed_dir, work_dir, storage, threads, memory, kmers, force
 
     work_out.mkdir(parents=True, exist_ok=True)
 
-    r1 = trimmed_dir / f"sample{sample}_1_val_1.fq.gz"
-    r2 = trimmed_dir / f"sample{sample}_2_val_2.fq.gz"
+    r1 = trimmed_dir / f"sample{sample}_val_1.fq.gz"
+    r2 = trimmed_dir / f"sample{sample}_val_2.fq.gz"
 
     require_file(r1)
     require_file(r2)
@@ -265,8 +266,8 @@ def confindr(sample, trimmed_dir, work_dir, storage, db, threads, base_cutoff, f
 
     work_out.mkdir(parents=True, exist_ok=True)
 
-    r1 = trimmed_dir / f"sample{sample}_1_val_1.fq.gz"
-    r2 = trimmed_dir / f"sample{sample}_2_val_2.fq.gz"
+    r1 = trimmed_dir / f"sample{sample}_val_1.fq.gz"
+    r2 = trimmed_dir / f"sample{sample}_val_2.fq.gz"
 
     require_file(r1)
     require_file(r2)
@@ -319,8 +320,8 @@ def ariba(sample, trimmed_dir, work_dir, storage, db, force, env):
 
     work_out.parent.mkdir(parents=True, exist_ok=True)
 
-    r1 = trimmed_dir / f"sample{sample}_1_val_1.fq.gz"
-    r2 = trimmed_dir / f"sample{sample}_2_val_2.fq.gz"
+    r1 = trimmed_dir / f"sample{sample}_val_1.fq.gz"
+    r2 = trimmed_dir / f"sample{sample}_val_2.fq.gz"
 
     require_file(r1)
     require_file(r2)
@@ -366,8 +367,8 @@ def run_sample(sample, args):
         )
 
     if should_run("spades", args.start_at, args.stop_after):
-        require_file(trimmed_work / f"sample{sample}_1_val_1.fq.gz")
-        require_file(trimmed_work / f"sample{sample}_2_val_2.fq.gz")
+        require_file(trimmed_work / f"sample{sample}_val_1.fq.gz")
+        require_file(trimmed_work / f"sample{sample}_val_2.fq.gz")
 
         spades_work = spades(
             sample=sample,
@@ -421,8 +422,8 @@ def run_sample(sample, args):
         )
 
     if should_run("confindr", args.start_at, args.stop_after) and not args.skip_confindr:
-        require_file(trimmed_work / f"sample{sample}_1_val_1.fq.gz")
-        require_file(trimmed_work / f"sample{sample}_2_val_2.fq.gz")
+        require_file(trimmed_work / f"sample{sample}_val_1.fq.gz")
+        require_file(trimmed_work / f"sample{sample}_val_2.fq.gz")
 
         confindr(
             sample=sample,
@@ -437,8 +438,8 @@ def run_sample(sample, args):
         )
 
     if should_run("ariba", args.start_at, args.stop_after) and not args.skip_ariba:
-        require_file(trimmed_work / f"sample{sample}_1_val_1.fq.gz")
-        require_file(trimmed_work / f"sample{sample}_2_val_2.fq.gz")
+        require_file(trimmed_work / f"sample{sample}_val_1.fq.gz")
+        require_file(trimmed_work / f"sample{sample}_val_2.fq.gz")
 
         ariba(
             sample=sample,
@@ -507,7 +508,7 @@ def main():
         default=None,
     )
 
-    parser.add_argument("--raw-dir", default="/root/sequencing/in/reads")
+    parser.add_argument("--raw-dir", default="/root/dire/data/Illumina/sequences")
     parser.add_argument("--work-dir", default="/root/sequencing/intermediate/")
     parser.add_argument("--storage-dir", default="/root/dire/data/Analyser/processed/python")
 

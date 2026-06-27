@@ -83,3 +83,11 @@ tools/install/dire_snp_tree.yml
 tools/bin/run_core_snp_tree_from_assemblies.py
 /tools/bin/removed
 /model/bin/removed
+tools/bin/postpipeline_full_old.py
+tools/bin/firstlines.txt
+mlst.yml
+tools/bin/normalize_sample_names.py
+tools/bin/prepare_sequences.py
+tools/bin/README_pipeline_old.md
+tools/install/README_installation_tool_checking_old.md
+/tools/install/old

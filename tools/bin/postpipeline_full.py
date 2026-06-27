@@ -5,6 +5,7 @@ import argparse
 import shutil
 import subprocess
 import os
+import csv
 
 
 PIPELINE_STEPS = [
@@ -14,12 +15,18 @@ PIPELINE_STEPS = [
     "copy_checkm_summary",
     "summarize_confindr",
     "summarize_quast",
+    "mlst",
     "multiqc",
 ]
 
 DEFAULT_IGNORE_PATTERNS = [
-    "*/sample14*",
-    "*/sample38*",
+    "*/sample014*",
+    "*/sample038*",
+]
+
+DEFAULT_EXCLUDED_MLST_SAMPLES = [
+    "sample014",
+    "sample038",
 ]
 
 
@@ -248,6 +255,183 @@ def run_summarize_quast(args: argparse.Namespace) -> None:
     )
 
 
+def sample_name_from_assembly(path: Path) -> str:
+    """Return a stable sample name from common assembly layouts."""
+    stem = path.stem
+
+    # SPAdes-style per-sample directories often contain contigs.fasta or scaffolds.fasta.
+    if stem in {"contigs", "scaffolds", "assembly"}:
+        return path.parent.name
+
+    for suffix in (
+        ".assembly",
+        "_assembly",
+        ".contigs",
+        "_contigs",
+        ".scaffolds",
+        "_scaffolds",
+        ".spades",
+        "_spades",
+    ):
+        if stem.endswith(suffix):
+            return stem[: -len(suffix)]
+
+    return stem
+
+
+def normalize_sample_identifier(value: str) -> str:
+    """Normalize sample identifiers for exclusion checks."""
+    return value.strip().lower().replace("-", "_")
+
+
+def is_excluded_sample(sample: str, excluded_samples: list[str]) -> bool:
+    """Return True when the sample should be excluded from MLST."""
+    sample_norm = normalize_sample_identifier(sample)
+    excluded_norm = {normalize_sample_identifier(x) for x in excluded_samples}
+
+    if sample_norm in excluded_norm:
+        return True
+
+    # Also treat sample14, sample_14, DIRE_EC_014, and DIRE_EC_14 as equivalent.
+    digits = "".join(ch for ch in sample_norm if ch.isdigit())
+    if digits:
+        digits_int = str(int(digits))
+        for excluded in excluded_norm:
+            excluded_digits = "".join(ch for ch in excluded if ch.isdigit())
+            if excluded_digits and str(int(excluded_digits)) == digits_int:
+                return True
+
+    return False
+
+
+
+def find_assembly_files(
+    assembly_dir: Path,
+    extension: str,
+    excluded_samples: list[str] | None = None,
+) -> tuple[list[Path], list[Path]]:
+    require_dir(assembly_dir)
+    clean_extension = extension.lstrip(".")
+    all_files = sorted(assembly_dir.rglob(f"*.{clean_extension}"))
+
+    if not all_files:
+        raise FileNotFoundError(
+            f"No assembly files with extension .{clean_extension} found under: {assembly_dir}"
+        )
+
+    excluded_samples = excluded_samples or []
+    included_files: list[Path] = []
+    skipped_files: list[Path] = []
+
+    for path in all_files:
+        sample = sample_name_from_assembly(path)
+        if is_excluded_sample(sample, excluded_samples):
+            skipped_files.append(path)
+        else:
+            included_files.append(path)
+
+    if not included_files:
+        raise FileNotFoundError(
+            "No assembly files remain after applying MLST sample exclusions."
+        )
+
+    return included_files, skipped_files
+
+
+def parse_mlst_gene_call(call: str) -> tuple[str | None, str]:
+    """Parse calls such as adk(53), gyrB(19?), mdh(~9)."""
+    if "(" in call and call.endswith(")"):
+        gene, value = call.split("(", 1)
+        return gene, value[:-1]
+    return None, call
+
+
+def normalize_mlst_output(raw_output: Path, normalized_output: Path) -> None:
+    rows: list[dict[str, str]] = []
+    gene_order: list[str] = []
+
+    with raw_output.open(newline="") as handle:
+        reader = csv.reader(handle, delimiter="	")
+        for parts in reader:
+            if not parts or len(parts) < 3:
+                continue
+
+            assembly_path = Path(parts[0])
+            row = {
+                "sample": sample_name_from_assembly(assembly_path),
+                "file": str(assembly_path),
+                "scheme": parts[1],
+                "sequence_type": parts[2],
+            }
+
+            for call in parts[3:]:
+                gene, allele = parse_mlst_gene_call(call)
+                if gene is None:
+                    gene = f"allele_{len(gene_order) + 1}"
+                if gene not in gene_order:
+                    gene_order.append(gene)
+                row[gene] = allele
+
+            rows.append(row)
+
+    preferred_genes = ["adk", "fumC", "gyrB", "icd", "mdh", "purA", "recA"]
+    genes = [g for g in preferred_genes if g in gene_order]
+    genes.extend(g for g in gene_order if g not in genes)
+
+    fieldnames = ["sample", "file", "scheme", "sequence_type", *genes]
+    normalized_output.parent.mkdir(parents=True, exist_ok=True)
+
+    with normalized_output.open("w", newline="") as handle:
+        writer = csv.DictWriter(handle, delimiter="	", fieldnames=fieldnames, extrasaction="ignore")
+        writer.writeheader()
+        for row in sorted(rows, key=lambda item: item["sample"]):
+            writer.writerow(row)
+
+
+def run_mlst_all_assemblies(args: argparse.Namespace) -> None:
+    assembly_dir = Path(args.assembly_dir)
+    mlst_dir = Path(args.mlst_dir)
+    output = Path(args.mlst_output)
+    raw_output = mlst_dir / "mlst_raw.tsv"
+    log_file = Path(args.log_dir) / "mlst.log"
+
+    if not args.force and is_nonempty_file(output):
+        print(f"Skipping MLST: output already exists: {output}")
+        return
+
+    assembly_files, skipped_files = find_assembly_files(
+        assembly_dir,
+        args.assembly_extension,
+        args.exclude_mlst_sample,
+    )
+    mlst_dir.mkdir(parents=True, exist_ok=True)
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+
+    command = conda_cmd(args.mlst_env, [
+        "mlst",
+        "--scheme", args.mlst_scheme,
+        *assembly_files,
+    ])
+
+    print("\nRunning:")
+    print(" ".join(map(str, command)))
+    print(f"MLST assemblies: {len(assembly_files)}")
+    print(f"MLST skipped assemblies: {len(skipped_files)}")
+    for skipped in skipped_files:
+        print(f"Skipping MLST sample: {sample_name_from_assembly(skipped)} ({skipped})")
+    print(f"MLST output: {output}")
+
+    with raw_output.open("w") as out, log_file.open("a") as log:
+        log.write("\n\nRunning: " + " ".join(map(str, command)) + "\n")
+        log.write(f"MLST assemblies: {len(assembly_files)}\n")
+        log.write(f"MLST skipped assemblies: {len(skipped_files)}\n")
+        for skipped in skipped_files:
+            log.write(f"Skipping MLST sample: {sample_name_from_assembly(skipped)} ({skipped})\n")
+        subprocess.run(command, check=True, stdout=out, stderr=log)
+
+    normalize_mlst_output(raw_output, output)
+
+
 def run_multiqc_all_samples(args: argparse.Namespace) -> None:
     trimmed_dir = Path(args.trimmed_dir)
     storage_checkm_dir = Path(args.storage_checkm_dir)
@@ -300,6 +484,7 @@ def main() -> None:
 
     parser.add_argument("--main-env", default="dire_all")
     parser.add_argument("--checkm-env", default="checkm")
+    parser.add_argument("--mlst-env", default="mlst")
 
     parser.add_argument("--trimmed-dir", default="/root/dire/data/Analyser/processed/python/trimmed")
     parser.add_argument("--multiqc-dir", default="/root/dire/data/Analyser/processed/python/multiqc")
@@ -309,20 +494,30 @@ def main() -> None:
     parser.add_argument("--quality-dir", default="/root/dire/data/Analyser/processed/python/quality")
     parser.add_argument("--confindr-dir", default="/root/dire/data/Analyser/processed/python/confindr")
     parser.add_argument("--quast-dir", default="/root/dire/data/Analyser/processed/python/quast")
+    parser.add_argument("--mlst-dir", default="/root/dire/data/Analyser/processed/python/mlst")
     parser.add_argument("--confindr-summary-output", default="/root/dire/data/Analyser/processed/python/quality/confindr_summary.tsv")
     parser.add_argument("--quast-summary-output", default="/root/dire/data/Analyser/processed/python/quality/quast_summary.tsv")
+    parser.add_argument("--mlst-output", default="/root/dire/data/Analyser/processed/python/mlst/mlst_ecoli_achtman.tsv")
     parser.add_argument("--summarize-confindr-script", default=str("summarize_confindr.py"))
     parser.add_argument("--summarize-quast-script", default=str("summarize_quast.py"))
     parser.add_argument("--log-dir", default="/root/sequencing/intermediate/logs")
 
     parser.add_argument("--checkm-threads", type=int, default=4)
     parser.add_argument("--assembly-extension", default="fasta")
+    parser.add_argument("--mlst-scheme", default="ecoli_achtman_4")
 
     parser.add_argument(
         "--ignore",
         action="append",
         default=DEFAULT_IGNORE_PATTERNS.copy(),
         help="MultiQC ignore pattern. Can be repeated.",
+    )
+
+    parser.add_argument(
+        "--exclude-mlst-sample",
+        action="append",
+        default=DEFAULT_EXCLUDED_MLST_SAMPLES.copy(),
+        help="Sample identifier to exclude from the MLST step. Can be repeated.",
     )
     
     parser.add_argument(
@@ -342,8 +537,11 @@ def main() -> None:
     print(f"Stop after: {args.stop_after}")
     print(f"Main env: {args.main_env}")
     print(f"CheckM env: {args.checkm_env}")
+    print(f"MLST env: {args.mlst_env}")
     print(f"CheckM threads: {args.checkm_threads}")
     print(f"Quality dir: {args.quality_dir}")
+    print(f"MLST dir: {args.mlst_dir}")
+    print(f"MLST excluded samples: {args.exclude_mlst_sample}")
 
     if should_run("checkm_lineage", args.start_at, args.stop_after):
         run_checkm_lineage(args)
@@ -362,6 +560,9 @@ def main() -> None:
 
     if should_run("summarize_quast", args.start_at, args.stop_after):
         run_summarize_quast(args)
+
+    if should_run("mlst", args.start_at, args.stop_after):
+        run_mlst_all_assemblies(args)
 
     if should_run("multiqc", args.start_at, args.stop_after):
         run_multiqc_all_samples(args)

@@ -1,35 +1,41 @@
-# DIRE installation and tool checking
+# DIRE installation and version reporting
 
-Condensed instructions for installing the DIRE conda environments and documenting tool, database, computer, and operating system versions.
+Condensed instructions for installing the DIRE conda environments and documenting software, database, computer, operating system, and R package versions.
 
 ## Files
 
 - `install_all.sh` installs or updates Miniconda, creates or updates the required conda environments, updates selected databases, validates the installation, and writes installation logs and system information.
-- `print_tool_versions.py` is a read-only reporting script. It prints tool versions, conda environment information, database/reference information, and computer/OS information to timestamped report files.
+- `collect_software_versions.py` is a read-only reporting script for the Linux/WSL pipeline environment. It records software and local database versions from the DIRE conda environments into a timestamped semicolon-separated CSV file.
+- `collect_r_package_versions.py` is a read-only reporting script for the R analysis environment. It scans the R project for used packages, records installed R package versions, writes R session information, and optionally creates an Excel workbook.
 
 ## Required environment files
 
-Run the installation script from a directory containing:
+Run the installation script from a directory containing the conda environment YAML files used by the project, typically:
 
 ```text
 dire_all.yml
 confindr.yml
 ariba.yml
 checkm.yml
+mlst.yml
 ```
 
-The installation script checks that these files exist before updating the environments.
+The installation script should check that the required files exist before updating the environments.
 
 ## Conda environments
 
-The pipeline uses four conda environments:
+The pipeline/version reporting setup uses these conda environments:
 
 | Environment | Main purpose | Main tools |
 |---|---|---|
-| `dire_all` | Main pipeline tools | Trim Galore, Cutadapt, FastQC, SPAdes, seqkit, QUAST, AMRFinderPlus, MultiQC |
+| `dire_all` | Main sample pipeline and summaries | Trim Galore, Cutadapt, FastQC, SPAdes, seqkit, QUAST, AMRFinderPlus, MultiQC |
 | `confindr` | Contamination screening | ConFindr, BBDuk/BBMap, KMA, Samtools, Java |
 | `ariba` | Resistance-gene read mapping | ARIBA, Bowtie2, Samtools |
 | `checkm` | Assembly completeness/contamination QC | CheckM, pplacer, Prodigal, HMMER |
+| `mlst` | Sequence typing | mlst |
+| `juan` | Project environment for running AI model | Python |
+
+`collect_software_versions.py` records all of the above when the corresponding environment directory exists. If an environment is missing, the row is kept in the output CSV with status `environment not found`.
 
 ## Installation
 
@@ -39,18 +45,20 @@ Run:
 bash install_all.sh
 ```
 
-The script:
+The installation script is expected to:
 
-1. Installs Miniconda if missing.
-2. Accepts required Anaconda terms of service.
-3. Updates conda.
-4. Creates or updates the four conda environments from the YAML files using `conda env update --prune`.
-5. Updates the AMRFinderPlus database.
-6. Downloads and prepares the ARIBA ResFinder database.
-7. Writes system information before and after installation.
-8. Exports conda environment definitions and package lists.
-9. Validates key tools by running version commands.
-10. Writes a summary and log file.
+1. Install Miniconda if missing.
+2. Accept required Anaconda terms of service.
+3. Update conda.
+4. Create or update the required conda environments from the YAML files, typically using `conda env update --prune`.
+5. Update the AMRFinderPlus database.
+6. Download and prepare the ARIBA ResFinder database.
+7. Write system information before and after installation.
+8. Export conda environment definitions and package lists.
+9. Validate key tools by running version commands.
+10. Write a summary and log file.
+
+Use the installation script only when you intentionally want to create/update environments and databases.
 
 ## Installation output
 
@@ -60,7 +68,7 @@ Installation records are written to:
 /root/dire/data/Analyser/processed/python/installation
 ```
 
-Generated files include the computer name and timestamp in the filename, for example:
+Generated files typically include the computer name and timestamp in the filename, for example:
 
 ```text
 install_all_<computer>_<YYYYMMDD_HHMMSS>.log
@@ -72,13 +80,13 @@ dire_all_export_<computer>_<YYYYMMDD_HHMMSS>.yml
 dire_all_conda_list_<computer>_<YYYYMMDD_HHMMSS>.txt
 ```
 
-Equivalent export and package-list files are also written for `confindr`, `ariba`, and `checkm`.
+Equivalent export and package-list files may also be written for `confindr`, `ariba`, `checkm`, and `mlst`.
 
 ## Important database behavior
 
 `install_all.sh` updates databases.
 
-It runs AMRFinderPlus database update:
+It runs the AMRFinderPlus database update:
 
 ```bash
 conda run -n dire_all --no-capture-output amrfinder_update --force_update
@@ -96,148 +104,190 @@ The prepared ResFinder database records a local preparation file:
 /root/resfinder_ariba_db/RESFINDER_DB_VERSION.txt
 ```
 
-Use the installation script only when you intentionally want to create/update environments and databases.
-
-## Tool and version report
+## Linux/WSL software and database version report
 
 Run:
 
 ```bash
-python print_tool_versions.py
+python collect_software_versions.py
 ```
 
 The script is read-only. It should not update databases or modify environments.
 
-By default it writes reports to:
+By default it writes a timestamped semicolon-separated CSV to:
 
 ```text
 /root/dire/data/Analyser/processed/python
 ```
 
-Default report filenames include computer name and timestamp:
+Default filename pattern:
 
 ```text
-tool_versions_<computer>_<YYYYMMDD_HHMMSS>.txt
-tool_versions_summary_<computer>_<YYYYMMDD_HHMMSS>.txt
+software_versions_<computer>_<YYYYMMDD_HHMMSS>.csv
 ```
 
-Use a fixed output filename if needed:
+Use a custom output directory if needed:
 
 ```bash
-python print_tool_versions.py \
-  -o /root/dire/data/Analyser/processed/python/tool_versions.txt
+python collect_software_versions.py   --output-dir /root/dire/data/Analyser/processed/python
 ```
 
-Use a fixed summary filename if needed:
+## What `collect_software_versions.py` records
 
-```bash
-python print_tool_versions.py \
-  --summary-output /root/dire/data/Analyser/processed/python/tool_versions_summary.txt
-```
-
-## What the versioning script records
-
-`print_tool_versions.py` records:
-
-- computer name, OS, kernel, CPU, memory, and disk information
-- base Python and conda information
-- conda environment list
-- tool versions from all four conda environments
-- installation script and YAML file snapshots, with SHA256 checksums
-- conda package lists
-- conda environment exports
-- database/reference information
-- a short summary report
-
-## AMRFinderPlus database version
-
-The script reports the local AMRFinderPlus database version from:
+The output CSV contains one row per software/database item with these columns:
 
 ```text
-/root/miniconda3/envs/dire_all/share/amrfinderplus/data/latest/version.txt
+collected_at
+host
+environment
+environment_path
+software
+version
+command
+return_code
+status
+raw_output
 ```
 
-Manual check:
+The script currently checks:
+
+| Environment | Recorded tools |
+|---|---|
+| `base` | Python, conda |
+| `dire_all` | Python, Trim Galore, Cutadapt, FastQC, SPAdes, QUAST, MultiQC, SeqKit, AMRFinderPlus |
+| `confindr` | Python, ConFindr, BBDuk, KMA, Samtools, SeqKit |
+| `ariba` | Python, ARIBA, Bowtie2, Samtools |
+| `checkm` | Python, CheckM, pplacer, Prodigal, HMMER |
+| `mlst` | Python, mlst |
+| `juan` | Python |
+
+The script also records local database version files for:
+
+| Database | Checked path |
+|---|---|
+| AMRFinderPlus database | `/root/miniconda3/envs/dire_all/share/amrfinderplus/data/*/version.txt` and `/root/miniconda3/envs/dire_all/bin/data/*/version.txt` |
+| ResFinder ARIBA database | `/root/resfinder_ariba_db/RESFINDER_DB_VERSION.txt` |
+
+Rows with problems are printed at the end of the run. A failing row does not necessarily mean the whole report failed; it can indicate a missing optional environment, a version command that returned a non-zero exit code, or a missing local database version file.
+
+## Manual database checks
+
+AMRFinderPlus database:
 
 ```bash
 cat /root/miniconda3/envs/dire_all/share/amrfinderplus/data/latest/version.txt
 ```
 
-This only reads the installed local database version. It does not update the database.
+ResFinder ARIBA database:
 
-## ResFinder ARIBA database version
+```bash
+cat /root/resfinder_ariba_db/RESFINDER_DB_VERSION.txt
+ls -lah /root/resfinder_ariba_db
+```
 
-The script checks:
+ConFindr database:
+
+```bash
+ls -lah /root/.confindr_db
+```
+
+## R package version report
+
+Run this on the system where the R analysis environment is installed:
+
+```bash
+python collect_r_package_versions.py
+```
+
+The script is read-only. It scans R files for package use and records the installed package versions from R.
+
+By default it scans:
 
 ```text
-/root/resfinder_ariba_db/RESFINDER_DB_VERSION.txt
+~/OneDrive - Västra Götalandsregionen/git/dire/R
 ```
 
-and lists the top-level files in:
+and writes output to:
 
 ```text
-/root/resfinder_ariba_db
+~/OneDrive - Västra Götalandsregionen/DIRE/Analyser/processed/R
 ```
 
-## ConFindr database information
-
-The script also summarizes:
+Default output files:
 
 ```text
-/root/.confindr_db
+r_used_packages_<computer>_<YYYYMMDD_HHMMSS>.csv
+r_installed_packages_<computer>_<YYYYMMDD_HHMMSS>.csv
+r_session_info_<computer>_<YYYYMMDD_HHMMSS>.txt
+r_package_versions_<computer>_<YYYYMMDD_HHMMSS>.xlsx
 ```
 
-## Useful options
+The CSV files are semicolon-separated.
 
-Skip conda package lists:
+## What `collect_r_package_versions.py` records
+
+`collect_r_package_versions.py` writes:
+
+- a table of packages used in the R project scripts, based on `library()`, `require()`, and `pkg::function` usage
+- installed R package versions from `installed.packages()`
+- R session information from `sessionInfo()`
+- an optional Excel workbook with sheets for used and installed packages, if `openpyxl` is available
+
+The used-package table includes:
+
+```text
+package
+version
+status
+lib_path
+built
+source_files
+```
+
+The installed-package table includes package metadata such as version, library path, dependencies/imports, license, and R build version.
+
+## Useful R version-report options
+
+Use a custom R project directory:
 
 ```bash
-python print_tool_versions.py --skip-conda-list
+python collect_r_package_versions.py   --project-dir "C:/Users/xhessm/OneDrive - Västra Götalandsregionen/git/dire/R"
 ```
 
-Skip conda environment exports:
+Use a custom output directory:
 
 ```bash
-python print_tool_versions.py --skip-conda-export
+python collect_r_package_versions.py   --output-dir "C:/Users/xhessm/OneDrive - Västra Götalandsregionen/DIRE/Analyser/processed/R"
 ```
 
-Skip database/reference summaries:
+Use a specific `Rscript.exe`:
 
 ```bash
-python print_tool_versions.py --skip-database-info
+python collect_r_package_versions.py   --rscript "C:/Program Files/R/R-4.5.2/bin/Rscript.exe"
 ```
 
-Add another database/reference path to summarize:
-
-```bash
-python print_tool_versions.py --db-path my_database=/path/to/database
-```
-
-Include additional environment YAML files in the report:
-
-```bash
-python print_tool_versions.py --env-yml extra_environment.yml
-```
-
-Use a longer timeout for slow commands:
-
-```bash
-python print_tool_versions.py --timeout 120
-```
+If `Rscript` is not on `PATH`, the script also checks common Windows R installation paths.
 
 ## Recommended workflow
 
-For a new installation or environment update:
+For a new installation or environment/database update:
 
 ```bash
 bash install_all.sh
-python print_tool_versions.py
+python collect_software_versions.py
 ```
 
-For documentation before manuscript submission, without updating anything:
+For R package documentation:
 
 ```bash
-python print_tool_versions.py
+python collect_r_package_versions.py
 ```
 
-Archive both the detailed and summary reports together with the pipeline output.
+For documentation before manuscript submission, without updating environments or databases:
+
+```bash
+python collect_software_versions.py
+python collect_r_package_versions.py
+```
+
+Archive the software-version CSV, R package CSV files, R session information file, optional R Excel workbook, and installation logs together with the pipeline output.
