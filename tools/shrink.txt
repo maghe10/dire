@@ -3,6 +3,7 @@ wsl --shutdown
 diskpart
 >select vdisk file=C:\Users\magnu\AppData\Local\Packages\CanonicalGroupLimited.Ubuntu_79rhkp1fndgsc\LocalState\ext4.vhdx
 >select vdisk file=C:\Users\HP\AppData\Local\Packages\CanonicalGroupLimited.Ubuntu_79rhkp1fndgsc\LocalState\ext4.vhdx
+select vdisk file=C:\Users\xhessm\AppData\Local\Packages\CanonicalGroupLimited.Ubuntu22.04LTS_79rhkp1fndgsc\LocalState\ext4.vhdx
 >attach vdisk readonly
 >compact vdisk
 >detach vdisk

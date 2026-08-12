@@ -91,3 +91,10 @@ tools/bin/prepare_sequences.py
 tools/bin/README_pipeline_old.md
 tools/install/README_installation_tool_checking_old.md
 /tools/install/old
+/R/legacy
+R/manuscript/NSCMID_poster_main_results.R
+/tools/install/enterobase_achtman7
+tools/install/run_mlst_enterobase_achtman7.py
+tools/shrink.txt
+tools/shrink.txt
+tools/bin/postpipeline_full_old2.py

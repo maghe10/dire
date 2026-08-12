@@ -145,6 +145,44 @@ read_ena_sample_summary <- function(
     )
 }
 
+read_sample_dates <- function(
+    demographic_file = file.path(
+      processedRootRcommon,
+      "demographicstable.csv"
+    )
+) {
+  if (!file.exists(demographic_file)) {
+    stop("Demographics file not found: ", demographic_file)
+  }
+  
+  demographic_table <- read_delim(
+    demographic_file,
+    delim = ";",
+    col_types = cols(.default = "c"),
+    trim_ws = TRUE
+  )
+  
+  names(demographic_table) <- trimws(names(demographic_table))
+  
+  required_columns <- c("sample", "date")
+  missing_columns <- setdiff(required_columns, names(demographic_table))
+  
+  if (length(missing_columns) > 0) {
+    stop(
+      "Missing column(s) in demographics file: ",
+      paste(missing_columns, collapse = ", "),
+      ". Columns found: ",
+      paste(names(demographic_table), collapse = ", ")
+    )
+  }
+  
+  demographic_table %>%
+    transmute(
+      sample = normalize_sample_id(.data[["sample"]]),
+      `Collection date` = as.Date(.data[["date"]])
+    )
+}
+
 
 read_ena_run_summary <- function(
     run_report_file = file.path(processedRoot, "ENA", "filereport_read_run_PRJEB115520.tsv")
@@ -177,20 +215,23 @@ create_sample_summary <- function(
     mlst_file = file.path(processedRoot, "python", "mlst", "mlst_ecoli_achtman.tsv"),
     sample_json_file = file.path(processedRoot, "ENA", "samples.json"),
     run_report_file = file.path(processedRoot, "ENA", "filereport_read_run_PRJEB115520.tsv"),
+    demographic_file = file.path(processedRootRcommon, "demographicstable.csv"),
     exclude_samples = c("014", "038")
 ) {
   mlst_table <- read_mlst_summary(mlst_file)
-  
   genotype_table <- read_genotype_summary()
-  
   ena_samples <- read_ena_sample_summary(sample_json_file)
-  
   ena_runs <- read_ena_run_summary(run_report_file)
+  sample_dates <- read_sample_dates(demographic_file)
   
   sample_summary <- ena_samples %>%
     left_join(
       ena_runs,
       by = "ENA sample accession"
+    ) %>%
+    left_join(
+      sample_dates,
+      by = "sample"
     ) %>%
     left_join(
       mlst_table,
@@ -223,6 +264,7 @@ create_sample_summary <- function(
     arrange(sample) %>%
     transmute(
       `Sample ID` = sample,
+      `Collection date`,
       `ENA sample alias`,
       `ENA sample accession`,
       `ENA experiment accession`,
@@ -234,6 +276,17 @@ create_sample_summary <- function(
       `Aminoglycoside resistance genes`,
       `Resistance determinants`
     )
+  
+  if (any(is.na(sample_summary$`Collection date`))) {
+    missing_dates <- sample_summary %>%
+      filter(is.na(`Collection date`)) %>%
+      pull(`Sample ID`)
+    
+    stop(
+      "Collection date missing for sample(s): ",
+      paste(missing_dates, collapse = ", ")
+    )
+  }
   
   write_delim(
     sample_summary,
@@ -249,43 +302,23 @@ create_sample_summary <- function(
 }
 
 
-
-# create_sample_summary <- function()
-# {
-#   #MLST
-#   mlst_file <-  file.path(processedRoot,"python","mlst","mlst_ecoli_achtman.tsv")
-#   file.exists(mlst_file)
-#   mlst_table <- read_tsv(mlst_file,col_names = TRUE)
-#   
-#   #GENOTYPE
-#   genotypeTable <- getGenotypeGroupTable() %>% select(sample,Functional_groups,Beta_genes,Quinolone_genes,Aminoglycoside_genes)
-# 
-#   #Ena assession numbers
-#   assession_file <- file.path(processedRoot,"ENA","samples.json")
-#   file.exists(assession_file)
-#   
-#   
-# }
-
-
-
-
-make_supplementary_table_s1 <- function(
+make_supplementary_table_s3 <- function(
     input_csv = file.path(processedRootRcommon, "sample_summary.csv"),
-    output_xlsx = file.path(manuscriptDirectory, "Supplementary_Table_S1.xlsx"),
-    output_csv = file.path(manuscriptDirectory, "Supplementary_Table_S1.csv")
+    output_xlsx = file.path(manuscriptDirectory, "Supplementary_Table_S3_isolate_collection_accessions_ST_resistance_determinants.xlsx"),
+    output_csv = file.path(manuscriptDirectory, "Supplementary_Table_S3_isolate_collection_accessions_ST_resistance_determinants.csv")
 ) {
-  supp_table_s1 <- read_delim(
+  supp_table_s3 <- read_delim(
     input_csv,
     delim = ";",
     col_types = cols(.default = "c")
   )
   
-  supp_table_s1 <- supp_table_s1 %>%
+  supp_table_s3 <- supp_table_s3 %>%
     arrange(`Sample ID`)
   
   expected_columns <- c(
     "Sample ID",
+    "Collection date",
     "ENA sample alias",
     "ENA sample accession",
     "ENA experiment accession",
@@ -298,7 +331,7 @@ make_supplementary_table_s1 <- function(
     "Resistance determinants"
   )
   
-  missing_columns <- setdiff(expected_columns, names(supp_table_s1))
+  missing_columns <- setdiff(expected_columns, names(supp_table_s3))
   if (length(missing_columns) > 0) {
     stop(
       "Missing expected columns in input CSV: ",
@@ -306,12 +339,13 @@ make_supplementary_table_s1 <- function(
     )
   }
   
-  supp_table_s1 <- supp_table_s1 %>%
+  supp_table_s3 <- supp_table_s3 %>%
     select(all_of(expected_columns))
   
-  column_descriptions_s1 <- tribble(
+  column_descriptions_s3 <- tribble(
     ~Column, ~Description,
     "Sample ID", "Study-specific isolate identifier used in the manuscript.",
+    "Collection date", "Date of collection of the clinical urine sample.",
     "ENA sample alias", "Study-specific ENA sample alias.",
     "ENA sample accession", "BioSample accession assigned by ENA.",
     "ENA experiment accession", "ENA experiment accession linked to the sequencing library and instrument metadata.",
@@ -324,24 +358,28 @@ make_supplementary_table_s1 <- function(
     "Resistance determinants", "Combined list of detected resistance genes and resistance-associated point mutations, including QRDR mutations."
   )
   
-  readme_s1 <- tribble(
+  readme_s3 <- tribble(
     ~Item, ~Description,
-    "Supplementary table", "Supplementary Table S1. Isolate accessions, sequence types, and resistance determinants.",
-    "Description", "The table links isolate identifiers used in the manuscript to corresponding ENA accessions and summarizes sequence types and detected resistance determinants.",
-    "Notes", "QRDR mutations are included among resistance determinants. Constants such as organism, isolation source, and country are not included because they are identical for all isolates. Group and family-level resistance summaries are not included.",
-    "Column descriptions", "Column descriptions are provided in the sheet named 'Column descriptions'."
+    "Supplementary table",
+    "Supplementary Table S3. Isolate collection dates, accessions, sequence types, and resistance determinants.",
+    "Description",
+    "The table links isolate identifiers used in the manuscript to their collection dates and corresponding ENA accessions and summarizes sequence types and detected resistance determinants.",
+    "Notes",
+    "QRDR mutations are included among resistance determinants. Constants such as organism, isolation source, and country are not included because they are identical for all isolates. Group and family-level resistance summaries are not included.",
+    "Column descriptions",
+    "Column descriptions are provided in the sheet named 'Column descriptions'."
   )
   
   wb <- createWorkbook()
   
   addWorksheet(wb, "Data")
-  writeData(wb, "Data", supp_table_s1)
+  writeData(wb, "Data", supp_table_s3)
   
   addWorksheet(wb, "Column descriptions")
-  writeData(wb, "Column descriptions", column_descriptions_s1)
+  writeData(wb, "Column descriptions", column_descriptions_s3)
   
   addWorksheet(wb, "README")
-  writeData(wb, "README", readme_s1)
+  writeData(wb, "README", readme_s3)
   
   header_style <- createStyle(
     textDecoration = "bold",
@@ -351,21 +389,21 @@ make_supplementary_table_s1 <- function(
   addStyle(
     wb, "Data", header_style,
     rows = 1,
-    cols = seq_len(ncol(supp_table_s1)),
+    cols = seq_len(ncol(supp_table_s3)),
     gridExpand = TRUE
   )
   
   addStyle(
     wb, "Column descriptions", header_style,
     rows = 1,
-    cols = seq_len(ncol(column_descriptions_s1)),
+    cols = seq_len(ncol(column_descriptions_s3)),
     gridExpand = TRUE
   )
   
   addStyle(
     wb, "README", header_style,
     rows = 1,
-    cols = seq_len(ncol(readme_s1)),
+    cols = seq_len(ncol(readme_s3)),
     gridExpand = TRUE
   )
   
@@ -376,7 +414,7 @@ make_supplementary_table_s1 <- function(
   setColWidths(
     wb,
     "Data",
-    cols = seq_len(ncol(supp_table_s1)),
+    cols = seq_len(ncol(supp_table_s3)),
     widths = "auto"
   )
   
@@ -401,7 +439,7 @@ make_supplementary_table_s1 <- function(
   )
   
   write_delim(
-    supp_table_s1,
+    supp_table_s3,
     output_csv,
     delim = ";",
     na = ""
@@ -409,9 +447,9 @@ make_supplementary_table_s1 <- function(
   
   invisible(
     list(
-      data = supp_table_s1,
-      column_descriptions = column_descriptions_s1,
-      readme = readme_s1,
+      data = supp_table_s3,
+      column_descriptions = column_descriptions_s3,
+      readme = readme_s3,
       output_xlsx = output_xlsx,
       output_csv = output_csv
     )
@@ -421,9 +459,9 @@ make_supplementary_table_s1 <- function(
 
 ALL <- function() {
   create_sample_summary()
-  make_supplementary_table_s1()
+  make_supplementary_table_s3()
   
-  message("Supplementary Table S1 generated.")
+  message("Supplementary Table s3 generated.")
   
   invisible(TRUE)
 }

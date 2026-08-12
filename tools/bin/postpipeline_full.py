@@ -6,6 +6,10 @@ import shutil
 import subprocess
 import os
 import csv
+import gzip
+import re
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
 
 
 PIPELINE_STEPS = [
@@ -28,6 +32,22 @@ DEFAULT_EXCLUDED_MLST_SAMPLES = [
     "sample014",
     "sample038",
 ]
+
+
+ENTEROBASE_ACHTMAN7_BASE_URL = "https://enterobase.warwick.ac.uk/schemes/Escherichia.Achtman7GeneMLST"
+ENTEROBASE_ACHTMAN7_GENES = ["adk", "fumC", "gyrB", "icd", "mdh", "purA", "recA"]
+ENTEROBASE_ACHTMAN7_FILES = [
+    "MLST_Achtman_ref.fasta",
+    "adk.fasta.gz",
+    "fumC.fasta.gz",
+    "gyrB.fasta.gz",
+    "icd.fasta.gz",
+    "mdh.fasta.gz",
+    "profiles.list.gz",
+    "purA.fasta.gz",
+    "recA.fasta.gz",
+]
+
 
 
 def should_run(step: str, start_at: str, stop_after: str | None = None) -> bool:
@@ -238,6 +258,61 @@ def run_summarize_confindr(args: argparse.Namespace) -> None:
     )
 
 
+def write_confindr_multiqc_custom_content(args: argparse.Namespace) -> None:
+    source = Path(args.confindr_summary_output)
+    destination = Path(args.quality_dir) / "confindr_summary_mqc.tsv"
+
+    require_file(source)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+
+    if not args.force and is_nonempty_file(destination):
+        print(f"Skipping ConFindr MultiQC custom content: output already exists: {destination}")
+        return
+
+    wanted_columns = [
+        "sample",
+        "confindr_interpretation",
+        "Genus",
+        "NumContamSNVs",
+        "ContamStatus",
+        "BasesExamined",
+        "DatabaseDownloadDate",
+    ]
+
+    output_columns = [
+        "sample",
+        "interpretation",
+        "genus",
+        "contaminated_snvs",
+        "contamination_detected",
+        "bases_examined",
+        "database_date",
+    ]
+
+    with source.open("r", newline="") as inp, destination.open("w", newline="") as out:
+        reader = csv.DictReader(inp, delimiter="\t")
+        writer = csv.DictWriter(out, delimiter="\t", fieldnames=output_columns)
+
+        out.write("# id: confindr_summary\n")
+        out.write("# section_name: ConFindr contamination summary\n")
+        out.write("# description: ConFindr contamination status per isolate.\n")
+        out.write("# plot_type: table\n")
+
+        writer.writeheader()
+
+        for row in reader:
+            writer.writerow({
+                "sample": row.get("sample", ""),
+                "interpretation": row.get("confindr_interpretation", ""),
+                "genus": row.get("Genus", ""),
+                "contaminated_snvs": row.get("NumContamSNVs", ""),
+                "contamination_detected": row.get("ContamStatus", ""),
+                "bases_examined": row.get("BasesExamined", ""),
+                "database_date": row.get("DatabaseDownloadDate", ""),
+            })
+
+    print(f"Wrote ConFindr MultiQC custom content: {destination}")
+    
 def run_summarize_quast(args: argparse.Namespace) -> None:
     tools_dir = Path(args.tools_dir)
     script = tools_dir / args.summarize_quast_script
@@ -338,6 +413,189 @@ def find_assembly_files(
     return included_files, skipped_files
 
 
+
+def open_text_maybe_gzip(path: Path):
+    if path.suffix == ".gz":
+        return gzip.open(path, "rt", encoding="utf-8", errors="replace")
+    return path.open("rt", encoding="utf-8", errors="replace")
+
+
+def wrap_fasta(sequence: str, width: int = 80) -> str:
+    return "".join(sequence[i:i + width] + "\n" for i in range(0, len(sequence), width))
+
+
+def download_url_to_file(url: str, destination: Path, force: bool = False) -> None:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+
+    if is_nonempty_file(destination) and not force:
+        print(f"Skipping existing EnteroBase file: {destination}")
+        return
+
+    print(f"Downloading EnteroBase MLST file: {url}")
+    request = Request(url, headers={"User-Agent": "Mozilla/5.0"})
+
+    try:
+        with urlopen(request, timeout=120) as response, destination.open("wb") as out:
+            shutil.copyfileobj(response, out)
+    except HTTPError as e:
+        raise RuntimeError(f"HTTP error while downloading {url}: {e.code} {e.reason}") from e
+    except URLError as e:
+        raise RuntimeError(f"URL error while downloading {url}: {e.reason}") from e
+
+    if not is_nonempty_file(destination):
+        raise RuntimeError(f"Downloaded file is empty: {destination}")
+
+
+def parse_enterobase_allele_number(header: str, gene: str) -> str:
+    """Return allele number from common EnteroBase FASTA header formats."""
+    header = header.lstrip(">").strip()
+    patterns = [
+        rf"^{re.escape(gene)}[_-](\d+)\b",
+        r"^(\d+)\b",
+        r"\ballele[_ ]?(\d+)\b",
+        rf"\b{re.escape(gene)}[_-](\d+)\b",
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, header, flags=re.IGNORECASE)
+        if match:
+            return match.group(1)
+
+    raise ValueError(f"Could not parse allele number from FASTA header: >{header}")
+
+
+def download_enterobase_achtman7_source(source_dir: Path, force: bool = False) -> None:
+    source_dir.mkdir(parents=True, exist_ok=True)
+    for filename in ENTEROBASE_ACHTMAN7_FILES:
+        download_url_to_file(
+            f"{ENTEROBASE_ACHTMAN7_BASE_URL}/{filename}",
+            source_dir / filename,
+            force=force,
+        )
+
+
+def write_enterobase_alleles_and_combined_fasta(
+    source_dir: Path,
+    scheme_dir: Path,
+    combined_fasta: Path,
+    scheme: str,
+) -> None:
+    scheme_dir.mkdir(parents=True, exist_ok=True)
+    combined_fasta.parent.mkdir(parents=True, exist_ok=True)
+
+    with combined_fasta.open("w") as combined:
+        for gene in ENTEROBASE_ACHTMAN7_GENES:
+            source = source_dir / f"{gene}.fasta.gz"
+            require_file(source)
+            target = scheme_dir / f"{gene}.tfa"
+
+            with open_text_maybe_gzip(source) as inp, target.open("w") as gene_out:
+                current_header: str | None = None
+                sequence_lines: list[str] = []
+
+                def flush_record() -> None:
+                    if current_header is None:
+                        return
+                    allele = parse_enterobase_allele_number(current_header, gene)
+                    sequence = "".join(sequence_lines).replace(" ", "").replace("\t", "").upper()
+                    if not sequence:
+                        return
+
+                    gene_out.write(f">{gene}_{allele}\n")
+                    gene_out.write(wrap_fasta(sequence))
+                    combined.write(f">{scheme}.{gene}-{allele}\n")
+                    combined.write(wrap_fasta(sequence))
+
+                for line in inp:
+                    line = line.rstrip("\n")
+                    if not line:
+                        continue
+                    if line.startswith(">"):
+                        flush_record()
+                        current_header = line
+                        sequence_lines = []
+                    else:
+                        sequence_lines.append(line)
+
+                flush_record()
+
+
+def write_enterobase_profile_table(source_dir: Path, scheme_dir: Path, scheme: str) -> None:
+    source = source_dir / "profiles.list.gz"
+    require_file(source)
+    target = scheme_dir / f"{scheme}.txt"
+
+    with open_text_maybe_gzip(source) as inp, target.open("w") as out:
+        for line in inp:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            parts = line.split()
+            if len(parts) < 8:
+                continue
+            out.write("\t".join(parts[:8]) + "\n")
+
+
+def enterobase_mlst_database_ready(work_dir: Path, scheme: str) -> bool:
+    combined_fasta = work_dir / "blast" / "mlst.fa"
+    scheme_table = work_dir / "pubmlst" / scheme / f"{scheme}.txt"
+    blast_files = [
+        Path(str(combined_fasta) + suffix)
+        for suffix in (".nhr", ".nin", ".nsq")
+    ]
+    return is_nonempty_file(combined_fasta) and is_nonempty_file(scheme_table) and all(is_nonempty_file(x) for x in blast_files)
+
+
+def ensure_enterobase_mlst_database(args: argparse.Namespace) -> tuple[Path, Path]:
+    """Download and build a local mlst-compatible EnteroBase Achtman7 database if needed."""
+    mlst_dir = Path(args.mlst_dir)
+    source_dir = Path(args.mlst_enterobase_source_dir) if args.mlst_enterobase_source_dir else mlst_dir / "enterobase_achtman7_source"
+    work_dir = Path(args.mlst_enterobase_work_dir) if args.mlst_enterobase_work_dir else mlst_dir / "enterobase_achtman7_mlst_db"
+    datadir = work_dir / "pubmlst"
+    scheme_dir = datadir / args.mlst_scheme
+    blast_dir = work_dir / "blast"
+    combined_fasta = blast_dir / "mlst.fa"
+    log_file = Path(args.log_dir) / "mlst.enterobase_db.log"
+
+    if args.refresh_mlst_db and work_dir.exists():
+        print(f"Removing existing EnteroBase MLST work directory because --refresh-mlst-db was used: {work_dir}")
+        shutil.rmtree(work_dir)
+
+    source_missing = any(not is_nonempty_file(source_dir / filename) for filename in ENTEROBASE_ACHTMAN7_FILES)
+    if source_missing or args.refresh_mlst_db:
+        download_enterobase_achtman7_source(source_dir, force=args.refresh_mlst_db)
+
+    if enterobase_mlst_database_ready(work_dir, args.mlst_scheme) and not args.refresh_mlst_db:
+        print(f"Using existing EnteroBase-derived MLST database: {work_dir}")
+        return datadir, combined_fasta
+
+    print(f"Building EnteroBase-derived MLST database: {work_dir}")
+    write_enterobase_alleles_and_combined_fasta(
+        source_dir=source_dir,
+        scheme_dir=scheme_dir,
+        combined_fasta=combined_fasta,
+        scheme=args.mlst_scheme,
+    )
+    write_enterobase_profile_table(
+        source_dir=source_dir,
+        scheme_dir=scheme_dir,
+        scheme=args.mlst_scheme,
+    )
+
+    command = conda_cmd(args.mlst_env, [
+        "makeblastdb",
+        "-in", combined_fasta,
+        "-dbtype", "nucl",
+        "-parse_seqids",
+    ])
+    run(command, log_file)
+
+    if not enterobase_mlst_database_ready(work_dir, args.mlst_scheme):
+        raise RuntimeError(f"EnteroBase MLST database build did not produce expected files in {work_dir}")
+
+    return datadir, combined_fasta
+
+
 def parse_mlst_gene_call(call: str) -> tuple[str | None, str]:
     """Parse calls such as adk(53), gyrB(19?), mdh(~9)."""
     if "(" in call and call.endswith(")"):
@@ -407,11 +665,20 @@ def run_mlst_all_assemblies(args: argparse.Namespace) -> None:
     mlst_dir.mkdir(parents=True, exist_ok=True)
     log_file.parent.mkdir(parents=True, exist_ok=True)
 
-    command = conda_cmd(args.mlst_env, [
+    mlst_command: list[str | Path] = [
         "mlst",
         "--scheme", args.mlst_scheme,
-        *assembly_files,
-    ])
+    ]
+
+    if args.mlst_use_enterobase_db:
+        datadir, blastdb = ensure_enterobase_mlst_database(args)
+        mlst_command.extend([
+            "--datadir", datadir,
+            "--blastdb", blastdb,
+        ])
+
+    mlst_command.extend(assembly_files)
+    command = conda_cmd(args.mlst_env, mlst_command)
 
     print("\nRunning:")
     print(" ".join(map(str, command)))
@@ -459,7 +726,10 @@ def run_multiqc_all_samples(args: argparse.Namespace) -> None:
     command.extend([
         str(trimmed_dir),
         str(storage_checkm_dir),
-    ])
+        str(Path(args.quast_dir)),
+        str(Path(args.quality_dir)),
+        str(Path(args.mlst_dir)),
+    ])  
 
     run(command, log_dir / "multiqc.log")
 
@@ -505,6 +775,28 @@ def main() -> None:
     parser.add_argument("--checkm-threads", type=int, default=4)
     parser.add_argument("--assembly-extension", default="fasta")
     parser.add_argument("--mlst-scheme", default="ecoli_achtman_4")
+    parser.add_argument(
+        "--no-mlst-enterobase-db",
+        dest="mlst_use_enterobase_db",
+        action="store_false",
+        help="Use the bundled mlst database instead of the downloaded EnteroBase Achtman7 database.",
+    )
+    parser.set_defaults(mlst_use_enterobase_db=True)
+    parser.add_argument(
+        "--mlst-enterobase-source-dir",
+        default=None,
+        help="Directory for downloaded EnteroBase Achtman7 source files. Defaults to <mlst-dir>/enterobase_achtman7_source.",
+    )
+    parser.add_argument(
+        "--mlst-enterobase-work-dir",
+        default=None,
+        help="Directory for the generated mlst-compatible EnteroBase database. Defaults to <mlst-dir>/enterobase_achtman7_mlst_db.",
+    )
+    parser.add_argument(
+        "--refresh-mlst-db",
+        action="store_true",
+        help="Re-download EnteroBase Achtman7 files and rebuild the local mlst database.",
+    )
 
     parser.add_argument(
         "--ignore",
@@ -541,6 +833,8 @@ def main() -> None:
     print(f"CheckM threads: {args.checkm_threads}")
     print(f"Quality dir: {args.quality_dir}")
     print(f"MLST dir: {args.mlst_dir}")
+    print(f"MLST scheme: {args.mlst_scheme}")
+    print(f"MLST uses EnteroBase database: {args.mlst_use_enterobase_db}")
     print(f"MLST excluded samples: {args.exclude_mlst_sample}")
 
     if should_run("checkm_lineage", args.start_at, args.stop_after):
@@ -557,6 +851,7 @@ def main() -> None:
 
     if should_run("summarize_confindr", args.start_at, args.stop_after):
         run_summarize_confindr(args)
+        write_confindr_multiqc_custom_content(args)        
 
     if should_run("summarize_quast", args.start_at, args.stop_after):
         run_summarize_quast(args)

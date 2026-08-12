@@ -22,3 +22,11 @@ ALL()
 source(file = 'clear.R')
 source(file = 'manuscript/manuscript_data.R')
 ALL()
+
+source(file = 'clear.R')
+source(file = 'manuscript/manuscript_sampletable.R')
+ALL()
+
+source(file = 'clear.R')
+source(file = 'manuscript/qc.R')
+ALL()

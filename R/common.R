@@ -35,37 +35,36 @@ direRoot <- paste(oneDriveRoot,"DIRE",sep="\\")
 # Different directories for code
 
 rRoot <- paste(oneDriveRoot,"git","dire","R",sep="\\")
-
 workingDirectory <- rRoot
-
 
 assemblymethod <- 'spades_standard'
 #assemblymethod <- 'unicycler_normal'
 #assemblymethod <- 'spades_optimized'
 #assemblymethod <- 'unicycler_conservative'
 
-assemblyDirectory <- paste(direRoot,assemblymethod,"assembly",sep="/")
+#assemblyDirectory <- paste(direRoot,assemblymethod,"assembly",sep="/")
 #amrfinderDatabase <- "231115.1"
 #amrfinderDatabase <- "2024-12-18.1"
 #amrfinderDatabase <- "2026-01-21.1"
-amrfinderDatabase <- "2026-05-15.1"
-amrfinderDirectory <- paste(direRoot,assemblymethod,"amrfinder",amrfinderDatabase,sep="/")
+#amrfinderDatabase <- "2026-05-15.1"
+#amrfinderDirectory <- paste(direRoot,assemblymethod,"amrfinder",amrfinderDatabase,sep="/")
 
 #aribaDirectory <- paste(direRoot,"Illumina","ariba",sep="/")
 #aribaResfinderDatabase <- "2026-03-09"
-aribaResfinderDatabase <- "2026-05-25"
-aribaDirectory <- paste(direRoot,assemblymethod,"ariba",aribaResfinderDatabase,sep="/")
+#aribaResfinderDatabase <- "2026-05-25"
+#aribaDirectory <- paste(direRoot,assemblymethod,"ariba",aribaResfinderDatabase,sep="/")
 
 #resfinderDatabase <- "v460"
 #resfinderDirectory <- paste(direRoot,assemblymethod,"resfinder",resfinderDatabase,sep="/")
 
-qualityDirectory <- paste(direRoot,assemblymethod,"quality",sep="/")
-tygsDirectory <- paste(qualityDirectory,"TYGS",sep="/")
-jspecieswsDirectory <- paste(qualityDirectory,"jspeciesws",sep="/")
-quastDirectory <- paste(qualityDirectory,"multiqc",sep="/")
-confindrtrimmedDirectory <- paste(qualityDirectory,"confindrtrimmed",sep="/")
-confindrrawDirectory <- paste(qualityDirectory,"confindrraw",sep="/")
-checkmDirectory <- paste(qualityDirectory,"checkm",sep="/")
+# Moved to legacy
+# qualityDirectory <- paste(direRoot,assemblymethod,"quality",sep="/")
+# tygsDirectory <- paste(qualityDirectory,"TYGS",sep="/")
+# jspecieswsDirectory <- paste(qualityDirectory,"jspeciesws",sep="/")
+# quastDirectory <- paste(qualityDirectory,"multiqc",sep="/")
+# confindrtrimmedDirectory <- paste(qualityDirectory,"confindrtrimmed",sep="/")
+# confindrrawDirectory <- paste(qualityDirectory,"confindrraw",sep="/")
+# checkmDirectory <- paste(qualityDirectory,"checkm",sep="/")
 
 
 
@@ -84,6 +83,12 @@ manuscriptDirectory <-  paste(processedRootR,"manuscript", modelVersion, sep="/"
 manuscriptPlotDirectory <- paste(manuscriptDirectory,"plot", sep="/")
 
 processedRootExcel <-  paste(processedRoot,"Excel", sep="/")
+
+
+processedRootPython <- file.path(processedRoot, "python") 
+aribaDirectory <- paste(processedRootPython,"ariba",sep="/")
+amrfinderDirectory <- paste(processedRootPython,"amrfinder",assemblymethod,sep="/")
+
 
 # working directory is always R root
 setwd(workingDirectory)
