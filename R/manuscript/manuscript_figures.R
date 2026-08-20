@@ -1,6 +1,7 @@
 source(file = 'manuscript/plotStatisticsTables_common.R')
 library(magick)
 library(grid)
+library(qpdf)
 
 
 dir.create(manuscriptPlotDirectory, recursive = TRUE, showWarnings = FALSE)
@@ -15,7 +16,7 @@ CLUSTER_PNG_OUTPUT_DIR <- paste(processedRootR,"cluster","png",sep="/")
 metric_colors <- c(correct = "#70AD47", ME = "#FFFF00", VME = "#FF0000")
 
 input_antibiotics_legend_title <- "Number of input antibiotics"
-significance_level_legend_title <- "Significance level"
+significance_level_legend_title <- "Confidence level"
 
 unambiguous_correct_predictions_y_legend <- "Unambiguous correct predictions"
 correct_predictions_y_legend <- "Correct predictions"
@@ -890,10 +891,27 @@ plotPatientsAndSamples <- function(tag)
 }
 
 
+format_caption <- function(label, caption) {
+  txt <- paste0(label, ". ", caption)
+  
+  parts <- strsplit(txt, "E\\. coli")[[1]]
+  
+  if (length(parts) == 1) {
+    return(txt)
+  }
+  
+  bquote(
+    bold(.(parts[1])) *
+      bolditalic("E. coli") *
+      bold(.(parts[2]))
+  )
+}
+
 
 make_figure_pdf <- function(
     caption_csv,
     output_pdf,
+    figure_labels = NULL,
     page_height = 8.27,
     page_width = 11.69
 ) {
@@ -903,13 +921,27 @@ make_figure_pdf <- function(
     col_types = cols(.default = "c")
   )
   
-  pdf(output_pdf, width = page_width, height = page_height, onefile = TRUE)
+  if (!is.null(figure_labels)) {
+    captions <- captions %>%
+      dplyr::filter(label %in% figure_labels)
+  }
+  
+  pdf(
+    output_pdf,
+    width = page_width,
+    height = page_height,
+    onefile = TRUE,
+    compress = TRUE
+  )
   
   on.exit(dev.off(), add = TRUE)
   
   for (i in seq_len(nrow(captions))) {
     fig_label <- captions$label[i]
-    fig_file <- file.path(manuscriptPlotDirectory,captions$file[i])
+    fig_file <- file.path(
+      manuscriptPlotDirectory,
+      captions$file[i]
+    )
     fig_caption <- captions$caption[i]
     
     if (!file.exists(fig_file)) {
@@ -919,20 +951,15 @@ make_figure_pdf <- function(
     
     grid.newpage()
     
-    # Read image
     img <- magick::image_read(fig_file)
     info <- magick::image_info(img)
     img_raster <- as.raster(img)
     
-    # Available figure area
     max_width_npc <- 0.90
     max_height_npc <- 0.72
     
     page_aspect <- page_width / page_height
     image_aspect <- info$width / info$height
-    
-    # Convert image aspect to npc coordinate system
-    # npc width/height units are relative to page width/height
     image_aspect_npc <- image_aspect / page_aspect
     
     if (image_aspect_npc >= max_width_npc / max_height_npc) {
@@ -943,7 +970,6 @@ make_figure_pdf <- function(
       draw_width <- max_height_npc * image_aspect_npc
     }
     
-    # Draw image without distortion
     grid.raster(
       img_raster,
       x = unit(0.5, "npc"),
@@ -954,34 +980,156 @@ make_figure_pdf <- function(
       interpolate = TRUE
     )
     
-    # Draw short bold caption below figure
     grid.text(
-      paste0(captions$label[i], ". ", captions$caption[i]),
+      format_caption(
+        captions$label[i],
+        captions$caption[i]
+      ),
       x = unit(0.7, "in"),
       y = unit(0.75, "in"),
       just = c("left", "bottom"),
-      gp = gpar(fontsize = 9, fontface = "bold")
+      gp = gpar(
+        fontsize = 9,
+        fontface = "bold"
+      )
     )
   }
   
   invisible(output_pdf)
 }
 
+# make_figure_pdf <- function(
+#     caption_csv,
+#     output_pdf,
+#     page_height = 8.27,
+#     page_width = 11.69
+# ) {
+#   captions <- read_delim(
+#     caption_csv,
+#     delim = ";",
+#     col_types = cols(.default = "c")
+#   )
+#   
+#   pdf(output_pdf, width = page_width, height = page_height, onefile = TRUE,compress = TRUE)
+#   
+#   on.exit(dev.off(), add = TRUE)
+#   
+#   for (i in seq_len(nrow(captions))) {
+#     fig_label <- captions$label[i]
+#     fig_file <- file.path(manuscriptPlotDirectory,captions$file[i])
+#     fig_caption <- captions$caption[i]
+#     
+#     if (!file.exists(fig_file)) {
+#       warning("Figure file not found: ", fig_file)
+#       next
+#     }
+#     
+#     grid.newpage()
+#     
+#     # Read image
+#     img <- magick::image_read(fig_file)
+#     info <- magick::image_info(img)
+#     img_raster <- as.raster(img)
+#     
+#     # Available figure area
+#     max_width_npc <- 0.90
+#     max_height_npc <- 0.72
+#     
+#     page_aspect <- page_width / page_height
+#     image_aspect <- info$width / info$height
+#     
+#     # Convert image aspect to npc coordinate system
+#     # npc width/height units are relative to page width/height
+#     image_aspect_npc <- image_aspect / page_aspect
+#     
+#     if (image_aspect_npc >= max_width_npc / max_height_npc) {
+#       draw_width <- max_width_npc
+#       draw_height <- max_width_npc / image_aspect_npc
+#     } else {
+#       draw_height <- max_height_npc
+#       draw_width <- max_height_npc * image_aspect_npc
+#     }
+#     
+#     # Draw image without distortion
+#     grid.raster(
+#       img_raster,
+#       x = unit(0.5, "npc"),
+#       y = unit(0.58, "npc"),
+#       width = unit(draw_width, "npc"),
+#       height = unit(draw_height, "npc"),
+#       just = "center",
+#       interpolate = TRUE
+#     )
+#     
+#     # Draw short bold caption below figure
+#     grid.text(
+#       format_caption(captions$label[i], captions$caption[i]),
+#       x = unit(0.7, "in"),
+#       y = unit(0.75, "in"),
+#       just = c("left", "bottom"),
+#       gp = gpar(fontsize = 9, fontface = "bold")
+#     )
+#   }
+#   
+#   invisible(output_pdf)
+# }
 
+
+
+# COMBINED_PDFS <- function()
+# {
+#   make_figure_pdf(
+#     caption_csv = file.path(processedRootExcel,"main_figure_captions_short.csv"),
+#     output_pdf = file.path(manuscriptDirectory,"Main_figures_combined.pdf")
+#   )
+#   make_figure_pdf(
+#     caption_csv = file.path(processedRootExcel,"supplementary_figure_captions_short.csv"),
+#     output_pdf = file.path(manuscriptDirectory,"Supplementary_figures_combined.pdf")
+#   )
+# 
+# }
 
 COMBINED_PDFS <- function()
 {
-  make_figure_pdf(
-    caption_csv = file.path(processedRootExcel,"main_figure_captions_short.csv"),
-    output_pdf = file.path(manuscriptDirectory,"Main_figures_combined.pdf")
+  main_captions <- file.path(
+    processedRootExcel,
+    "main_figure_captions_short.csv"
   )
-  make_figure_pdf(
-    caption_csv = file.path(processedRootExcel,"supplementary_figure_captions_short.csv"),
-    output_pdf = file.path(manuscriptDirectory,"Supplementary_figures_combined.pdf")
+  
+  supp_captions <- file.path(
+    processedRootExcel,
+    "supplementary_figure_captions_short.csv"
   )
-
-    #file.path(processedRootExcel,"supplementory_figure_captions_short.csv")
+  
+  # Main figures: unchanged
+  make_figure_pdf(
+    caption_csv = main_captions,
+    output_pdf = file.path(
+      manuscriptDirectory,
+      "Main_figures_combined.pdf"
+    )
+  )
+  
+  make_figure_pdf(
+    caption_csv = supp_captions,
+    output_pdf = file.path(
+      manuscriptDirectory,
+      "Supplementary_figures_S1-S6.pdf"
+    ),
+    figure_labels = sprintf("Supplementary Figure S%d", 1:6)
+  )
+  
+  make_figure_pdf(
+    caption_csv = supp_captions,
+    output_pdf = file.path(
+      manuscriptDirectory,
+      "Supplementary_figures_S7-S12.pdf"
+    ),
+    figure_labels = sprintf("Supplementary Figure S%d", 7:12)
+  )
 }
+
+
 
 ALL_PEK_FIGURES <- function()
 {

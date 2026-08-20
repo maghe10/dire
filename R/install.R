@@ -25,7 +25,8 @@ main_pkgs <- c(
   "pvclust",
   "vegan",
   "ape",
-  "magick"
+  "magick",
+  "qpdf"
 )
 
 # Dependencies (for reference only)

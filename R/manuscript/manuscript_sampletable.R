@@ -360,26 +360,30 @@ make_supplementary_table_s3 <- function(
   
   readme_s3 <- tribble(
     ~Item, ~Description,
-    "Supplementary table",
+    "Table name",
     "Supplementary Table S3. Isolate collection dates, accessions, sequence types, and resistance determinants.",
-    "Description",
+    "Table description",
     "The table links isolate identifiers used in the manuscript to their collection dates and corresponding ENA accessions and summarizes sequence types and detected resistance determinants.",
-    "Notes",
-    "QRDR mutations are included among resistance determinants. Constants such as organism, isolation source, and country are not included because they are identical for all isolates. Group and family-level resistance summaries are not included.",
     "Column descriptions",
-    "Column descriptions are provided in the sheet named 'Column descriptions'."
+    "Sheet 2 named 'Column descriptions' provides descriptions for columns in sheet 3 'Data'.",
+    "Data",
+    "Sheet 3 named 'Data' contains all table data.",
+    "Notes",
+    "QRDR mutations are included among resistance determinants. Constants such as organism, isolation source, and country are not included because they are identical for all isolates. Group and family-level resistance summaries are not included."
   )
   
   wb <- createWorkbook()
   
+  addWorksheet(wb, "README")
+  writeData(wb, "README", readme_s3)
+
+  addWorksheet(wb, "Column descriptions")
+  writeData(wb, "Column descriptions", column_descriptions_s3)
+
   addWorksheet(wb, "Data")
   writeData(wb, "Data", supp_table_s3)
   
-  addWorksheet(wb, "Column descriptions")
-  writeData(wb, "Column descriptions", column_descriptions_s3)
   
-  addWorksheet(wb, "README")
-  writeData(wb, "README", readme_s3)
   
   header_style <- createStyle(
     textDecoration = "bold",

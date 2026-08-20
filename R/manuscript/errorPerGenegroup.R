@@ -175,7 +175,7 @@ plot_ttest_forest <- function(ttest_tbl,
       drop = FALSE
     ) +
     labs(
-      x = "Difference in mean absolute error\n(Present \u2212 Absent)",
+      x = "Difference in mean absolute prediction error\n(Present \u2212 Absent)",
       y = NULL
     ) +
     theme_manuscript(base_size = base_size) +
