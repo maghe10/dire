@@ -179,7 +179,7 @@ read_sample_dates <- function(
   demographic_table %>%
     transmute(
       sample = normalize_sample_id(.data[["sample"]]),
-      `Collection date` = as.Date(.data[["date"]])
+      `Collection date` = format(as.Date(.data[["date"]]), "%Y-%m")
     )
 }
 
